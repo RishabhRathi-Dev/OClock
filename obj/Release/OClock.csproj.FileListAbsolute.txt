@@ -1,0 +1,15 @@
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\bin\Release\OClock.exe.config
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\bin\Release\OClock.exe
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\bin\Release\OClock.pdb
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock.csproj.AssemblyReference.cache
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\MainWindow.g.cs
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\App.g.cs
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock_MarkupCompile.cache
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock_MarkupCompile.lref
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\MainWindow.baml
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock.g.resources
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock.Properties.Resources.resources
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock.csproj.GenerateResource.cache
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock.csproj.CoreCompileInputs.cache
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock.exe
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Release\OClock.pdb
