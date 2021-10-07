@@ -1,0 +1,15 @@
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\bin\Debug\OClock.exe.config
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\bin\Debug\OClock.exe
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\bin\Debug\OClock.pdb
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock.csproj.AssemblyReference.cache
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\MainWindow.g.cs
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\App.g.cs
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock_MarkupCompile.cache
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock_MarkupCompile.lref
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\MainWindow.baml
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock.g.resources
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock.Properties.Resources.resources
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock.csproj.GenerateResource.cache
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock.csproj.CoreCompileInputs.cache
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock.exe
+D:\college\sem 3\Project Exhibition\Time Management Software\OClock\obj\Debug\OClock.pdb
