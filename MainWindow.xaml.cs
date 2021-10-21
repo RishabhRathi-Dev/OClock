@@ -18,27 +18,26 @@ using Microsoft.Win32;
 using System.IO;
 using System.Management;
 using System.Management.Instrumentation;
+using System.Threading;
 
 
 // Big issue :: Games from launchers are not in the list and they run by there own name :: can be solved by allowing user to enter name outside autocomplete
 
 // Known Issues ::
-// 1. Slow UI response when all 7 run (to be precise noticible change after 3)
-// 2. Timer Accuracy; it is noticed that time jump 1 or 2 secs after some interval; cause can be slow ui response
+// 1. Notify condition is not working 
 
 namespace OClock
 {
     public partial class MainWindow : Window
     {
-        List<dynamic> MonitoredProcessList = new List<dynamic>(7) { "", "", "", "", "", "", ""}; // for keeping track of software(process) we are monitoring
+        List<dynamic> MonitoredProcessList = new List<dynamic>(3) { "", "", "" }; // for keeping track of software(process) we are monitoring
         List<dynamic> DownloadedSoftwareList = new List<dynamic>(); // for keeping the list of downloaded software on the system
+        List<dynamic> ProcessStatus = new List<dynamic>(3) { "", "", "" }; // for keeping record of the status of the monitored process using status like true(run), false(stop) and notify(notify and stop)
 
-        List<dynamic> MonitorStatus = new List<dynamic>(7) { "", "", "", "", "", "", "" }; // for keeping track of which process monitoring has started
-        List<DateTime> StartTime = new List<DateTime>(); // for keeping record of start time, for the calculation of delta time
-        List<TimeSpan> DeltaTime = new List<TimeSpan>(); // for keeping record of time difference so that it can be displayed on the label
-        List<dynamic> ProcessStatus = new List<dynamic>(7) { "", "", "", "", "", "", "" }; // for keeping record of the status of the monitored process using status like true(run), false(stop) and notify(notify and stop)
-
-        List<bool> AddedStartTime = new List<bool>(7) { false, false, false, false, false, false, false}; // To condition so that right start time can be noted instead of initialized time
+        // Stopwatches for the timers
+        Stopwatch FirstMonitoredProcessWatch = new Stopwatch();
+        Stopwatch SecondMonitoredProcessWatch = new Stopwatch();
+        Stopwatch ThirdMonitoredProcessWatch = new Stopwatch();
 
         public MainWindow()
         {
@@ -52,12 +51,10 @@ namespace OClock
 
             EnterDataInCombobox(DownloadedSoftwareList); // for entrying data from DownloadedSoftwareList to combobox for user to select software to monitor
 
-            ListPrint(DownloadedSoftwareList); //for debugging purpose
+            //ListPrint(DownloadedSoftwareList); //for debugging purpose
             //ListPrint(MonitoredProcessList); //for debugging purpose
 
-            ToSolveIndexIssues();
-            CheckProcess(); // Work in Progress but it is suppose to check if the software is running currently
-
+            CheckProcess();
         }
 
         private void SoftwareList()
@@ -116,7 +113,6 @@ namespace OClock
 
             DownloadedSoftwareList = ProcessL;
 
-            
         }
 
         private void ListPrint(List<dynamic> l)
@@ -131,38 +127,30 @@ namespace OClock
             }
         }
 
-        private void ToSolveIndexIssues()
-        {
-            // This fuction is to fill the collection with temporary members so that the won't cause index issues later; more like it is to initialize the collection(list)
-
-            for (int i = 0; i < 7; i++)
-            {
-                DeltaTime.Add(DateTime.Now.Subtract(DateTime.Now));
-                StartTime.Add(DateTime.Now);
-            }
-        }
-
         private async void CheckProcess()
         {
             /// <summary>
             /// Work in Progress !!! This fuction is supposed to check wheather the oberserved programs are on taskbar(running)
             /// </summary>
 
-            await Task.Delay(1); // Optimization is needed to match 7 application tracking at same time 
+            await Task.Delay(400);
 
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < 3; i++)
             {
+                CheckNotify(i);
+                //ListPrint(ProcessStatus); // For debugging purpose
+
                 if (ProcessStatus[i] == "true")
                 {
-
                     foreach (Process p in Process.GetProcesses())
                     {
-
-                        // this if is for debugging purpose
-                        if (p.MainWindowTitle.Length > 0)
+                        
+                        // this if make sure timer does not start without taking input
+                        if (MonitoredProcessList[i].Length <= 1)
                         {
-                            Console.WriteLine(p.MainWindowTitle.ToString());
+                            break;
                         }
+                        
 
                         // Checking via searching name in string
 
@@ -178,97 +166,169 @@ namespace OClock
 
                         if (DoesIt)
                         {
-                            Console.WriteLine(MonitoredProcessList[i]); // For debugging Purpose
+                            // Console.WriteLine(MonitoredProcessList[i]); // For debugging Purpose
 
-                            TimeCountStart(i);
+                            switch (i)
+                            {
+                                case 0:
+                                    FirstMonitoredProcessWatch.Start();
+                                    break;
 
-                            Console.WriteLine(DeltaTime[0].ToString(@"hh\:mm\:ss")); // For debugging purpose 
-                            
+                                case 1:
+                                    SecondMonitoredProcessWatch.Start();
+                                    break;
+
+                                case 2:
+                                    ThirdMonitoredProcessWatch.Start();
+                                    break;
+                            }
+
                         }
-                        
-                    }
 
-                    TimeLabelUpdate(i);
+                    }
 
                 }
 
                 else if (ProcessStatus[i] == "notify")
                 {
-                  
+                    ProcessStatus[i] = "false";
+                    Notify(i);
                 }
 
                 else
                 {
 
                 }
+
+                TimeLabelUpdate();
+                
             }
 
             CheckProcess();
         }
 
-        private void TimeLabelUpdate(int i)
+        private void TimeLabelUpdate()
         {
-            switch (i)
+            /// <summary>
+            /// This function updates the visual display of time program ran on the respective label
+            /// </summary>
+            
+            Time.Content = FirstMonitoredProcessWatch.Elapsed.ToString(@"hh\:mm\:ss");
+            Time_Copy.Content = SecondMonitoredProcessWatch.Elapsed.ToString(@"hh\:mm\:ss");
+            Time_Copy1.Content = ThirdMonitoredProcessWatch.Elapsed.ToString(@"hh\:mm\:ss");
+
+        }
+
+        private bool ConditionForNotifying(bool A, bool B, bool C, bool D, bool E)
+        {
+            ///<summary>
+            ///This fuction process the boolean to match the condition when timer should notify
+            ///It is true when :
+            ///A(h > HH) or B(h == HH) & C(m > MM) or B(h == HH) & D(m == MM) & E(s > SS)
+            /// </summary>
+
+            bool result = (E & D & B | C & B | A );
+            //Console.WriteLine(result);
+            return result;
+        }
+
+        private void CheckNotify(int index)
+        {
+            ///<summary>
+            ///This function Gets the necessary comparitions and send it to conditionfornotifying to process and also change the process status
+            /// </summary>
+            if (ProcessStatus[index] == "true")
             {
-                // This switch handles the display changing of respective time labels 
+                switch (index)
+                {
+                    case 0:
+                        int HH1Number;
+                        int MM1Number;
+                        int SS1Number;
+                        bool isHH1 = Int32.TryParse(HH1.Text, out HH1Number);
+                        bool isMM1 = Int32.TryParse(MM1.Text, out MM1Number);
+                        bool isSS1 = Int32.TryParse(SS1.Text, out SS1Number);
 
-                case 0:
-                    Time.Content = DeltaTime[0].ToString(@"hh\:mm\:ss");
-                    break;
+                        if (!(isHH1 || isMM1 || isSS1))
+                        {
+                            break;
+                        }
 
-                case 1:
-                    Time_Copy.Content = DeltaTime[1].ToString(@"hh\:mm\:ss");
-                    break;
+                        bool a = HH1Number < FirstMonitoredProcessWatch.Elapsed.Hours;
+                        bool b = HH1Number == FirstMonitoredProcessWatch.Elapsed.Hours;
+                        bool c = MM1Number < FirstMonitoredProcessWatch.Elapsed.Minutes;
+                        bool d = MM1Number == FirstMonitoredProcessWatch.Elapsed.Minutes;
+                        bool e = SS1Number <= FirstMonitoredProcessWatch.Elapsed.Seconds;
 
-                case 2:
-                    Time_Copy1.Content = DeltaTime[2].ToString(@"hh\:mm\:ss");
-                    break;
+                        //Console.WriteLine((a, b, c, d, e));
 
-                case 3:
-                    Time_Copy2.Content = DeltaTime[3].ToString(@"hh\:mm\:ss");
-                    break;
+                        if (ConditionForNotifying(a, b, c, d, e))
+                        {
+                            //Console.WriteLine("Did Notify!!!!");
+                            ProcessStatus[0] = "notify";
+                        }
+                        break;
 
-                case 4:
-                    Time_Copy3.Content = DeltaTime[4].ToString(@"hh\:mm\:ss");
-                    break;
+                    case 1:
+                        int HH2Number;
+                        int MM2Number;
+                        int SS2Number;
+                        bool isHH2 = Int32.TryParse(HH2.Text, out HH2Number);
+                        bool isMM2 = Int32.TryParse(MM2.Text, out MM2Number);
+                        bool isSS2 = Int32.TryParse(SS2.Text, out SS2Number);
 
-                case 5:
-                    Time_Copy4.Content = DeltaTime[5].ToString(@"hh\:mm\:ss");
-                    break;
+                        if (!(isHH2 || isMM2 || isSS2))
+                        {
+                            break;
+                        }
 
-                case 6:
-                    Time_Copy5.Content = DeltaTime[6].ToString(@"hh\:mm\:ss");
-                    break;
+                        bool aa = HH2Number < SecondMonitoredProcessWatch.Elapsed.Hours;
+                        bool bb = HH2Number == SecondMonitoredProcessWatch.Elapsed.Hours;
+                        bool cc = MM2Number < SecondMonitoredProcessWatch.Elapsed.Minutes;
+                        bool dd = MM2Number == SecondMonitoredProcessWatch.Elapsed.Minutes;
+                        bool ee = SS2Number <= SecondMonitoredProcessWatch.Elapsed.Seconds;
+
+                        //Console.WriteLine((a, b, c, d, e));
+
+                        if (ConditionForNotifying(aa, bb, cc, dd, ee))
+                        {
+                            //Console.WriteLine("Did Notify!!!!");
+                            ProcessStatus[1] = "notify";
+                        }
+                        break;
+
+                    case 2:
+                        int HH3Number;
+                        int MM3Number;
+                        int SS3Number;
+                        bool isHH3 = Int32.TryParse(HH3.Text, out HH3Number);
+                        bool isMM3 = Int32.TryParse(MM3.Text, out MM3Number);
+                        bool isSS3 = Int32.TryParse(SS3.Text, out SS3Number);
+
+                        if (!(isHH3 || isMM3 || isSS3))
+                        {
+                            break;
+                        }
+
+                        bool aaa = HH3Number < ThirdMonitoredProcessWatch.Elapsed.Hours;
+                        bool bbb = HH3Number == ThirdMonitoredProcessWatch.Elapsed.Hours;
+                        bool ccc = MM3Number < ThirdMonitoredProcessWatch.Elapsed.Minutes;
+                        bool ddd = MM3Number == ThirdMonitoredProcessWatch.Elapsed.Minutes;
+                        bool eee = SS3Number <= ThirdMonitoredProcessWatch.Elapsed.Seconds;
+
+                        //Console.WriteLine((a, b, c, d, e));
+
+                        if (ConditionForNotifying(aaa, bbb, ccc, ddd, eee))
+                        {
+                            //Console.WriteLine("Did Notify!!!!");
+                            ProcessStatus[2] = "notify";
+                        }
+                        break;
+
+                }
             }
         }
 
-        private void TimeCountStart(int index)
-        {
-            /// <summary>
-            /// This function add StartTime of given index at the same index on the list 
-            /// </summary>
-
-            //Console.WriteLine(StartTime[index].ToString());
-
-            if (!AddedStartTime[index])
-            {
-                StartTime[index] = DateTime.Now;
-                AddedStartTime[index] = true;
-            }
-
-            Timer(index);
-        }
-
-        private void Timer(int index)
-        {
-            /// <summary>
-            /// This function returns Time Difference from given time (from given index on start list ) in DateTime format in TimeSpan format
-            /// </summary>
-
-            Console.WriteLine(index);
-
-            DeltaTime[index] = DateTime.Now.Subtract(StartTime[index]);
-        }
 
         private void EnterDataInCombobox(List<dynamic> l)
         {
@@ -281,16 +341,59 @@ namespace OClock
                 ProcessSelect.Items.Add(i);
                 ProcessSelect_Copy.Items.Add(i);
                 ProcessSelect_Copy1.Items.Add(i);
-                ProcessSelect_Copy2.Items.Add(i);
-                ProcessSelect_Copy3.Items.Add(i);
-                ProcessSelect_Copy4.Items.Add(i);
-                ProcessSelect_Copy5.Items.Add(i);
+               
+            }
+        }
+
+        private void CallNotificationWindow(int index)
+        {
+            /// <summary>
+            /// This fuction creates the notification window and kills it after 5 seconds
+            /// </summary>
+
+            NotificationWindow win = new NotificationWindow();
+            win.ProgramNameLabel.Content = MonitoredProcessList[index];
+
+            // Below is to make it come on top like a notification should
+            win.Show();
+            win.Activate();
+            win.Topmost = true;
+            win.Topmost = false;
+            win.Focus();
+        }
+
+
+        private void Notify(int index)
+        {
+            /// <summary>
+            /// This function create notification and stops the timer after that 
+            /// </summary>
+            
+            switch (index)
+            {
+                case 0:
+                    FirstMonitoredProcessWatch.Stop();
+                    CallNotificationWindow(0);
+                    ProcessStatus[0] = "false";
+                    break;
+
+                case 1:
+                    SecondMonitoredProcessWatch.Stop();
+                    CallNotificationWindow(1);
+                    ProcessStatus[1] = "false";
+                    break;
+
+                case 2:
+                    ThirdMonitoredProcessWatch.Stop();
+                    CallNotificationWindow(2);
+                    ProcessStatus[2] = "false";
+                    break;
+
             }
         }
 
 
-        //  Beyond this Work in Progress .................................. 
-
+        // Controls-----------------------------
 
         // Start Button Controls 
 
@@ -312,67 +415,25 @@ namespace OClock
             ProcessStatus[2] = "true";
         }
 
-        private void ObserverdProcess4Start(object sender, RoutedEventArgs e)
-        {
-            MonitoredProcessList[3] = ProcessSelect_Copy2.Text;
-            ProcessStatus[3] = "true";
-        }
-
-        private void ObserverdProcess5Start(object sender, RoutedEventArgs e)
-        {
-            MonitoredProcessList[4] = ProcessSelect_Copy3.Text;
-            ProcessStatus[4] = "true";
-        }
-
-        private void ObserverdProcess6Start(object sender, RoutedEventArgs e)
-        {
-            MonitoredProcessList[5] = ProcessSelect_Copy4.Text;
-            ProcessStatus[5] = "true";
-        }
-
-        private void ObserverdProcess7Start(object sender, RoutedEventArgs e)
-        {
-            MonitoredProcessList[6] = ProcessSelect_Copy5.Text;
-            ProcessStatus[6] = "true";
-        }
-
-        // Stop Button Controls
-
-        // Start Time is getting preserved can solve that by falsing respective in the add start list 
+        
+        // Stop Button Controls 
 
         private void ObserverdProcess1Stop(object sender, RoutedEventArgs e)
         {
+            FirstMonitoredProcessWatch.Stop();
             ProcessStatus[0] = "false";
         }
 
         private void ObserverdProcess2Stop(object sender, RoutedEventArgs e)
         {
+            SecondMonitoredProcessWatch.Stop();
             ProcessStatus[1] = "false";
         }
 
         private void ObserverdProcess3Stop(object sender, RoutedEventArgs e)
         {
+            ThirdMonitoredProcessWatch.Stop();
             ProcessStatus[2] = "false";
-        }
-
-        private void ObserverdProcess4Stop(object sender, RoutedEventArgs e)
-        {
-            ProcessStatus[3] = "false";
-        }
-
-        private void ObserverdProcess5Stop(object sender, RoutedEventArgs e)
-        {
-            ProcessStatus[4] = "false";
-        }
-
-        private void ObserverdProcess6Stop(object sender, RoutedEventArgs e)
-        {
-            ProcessStatus[5] = "false";
-        }
-
-        private void ObserverdProcess7Stop(object sender, RoutedEventArgs e)
-        {
-            ProcessStatus[6] = "false";
         }
     }
 }

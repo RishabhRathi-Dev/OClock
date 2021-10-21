@@ -30,15 +30,17 @@
             </TabControl>
         </StackPanel>
         <StackPanel x:Name="RightPanel" HorizontalAlignment="Left" Height="400.4" Margin="200,10,0,0" VerticalAlignment="Top" Width="583.6">
-            <StackPanel x:Name="ObservedProcess1" HorizontalAlignment="Left" Height="35" Margin="10,22,0,0" Width="563.6" Orientation="Horizontal">
+            <StackPanel x:Name="DataStackPanel" HorizontalAlignment="Left" Height="210" Width="583.6"/>
+            <Label x:Name="TimerHeading" Content="Timer" HorizontalAlignment="Left" Height="25" Margin="5,0,0,0" Width="568.6" FontWeight="Bold" FontSize="14"/>
+            <StackPanel x:Name="ObservedProcess1" HorizontalAlignment="Left" Height="35" Margin="10,10,0,0" Width="563.6" Orientation="Horizontal">
                 <ComboBox x:Name="ProcessSelect" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True" UseLayoutRounding="False"/>
                 <Label x:Name="Time" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
                 <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="HH1" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="MM1" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="SS:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="SS1" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <StackPanel x:Name="ButtonsPanel" Height="35" VerticalAlignment="Top" Width="65" Margin="15,0,0,0">
                     <Button x:Name="start" Content="Start" Height="17.5" VerticalAlignment="Top" Background="#FF40F433" Opacity="0.9" Padding="2,-2,1,1" ScrollViewer.CanContentScroll="True" Margin="0" Click="ObserverdProcess1Start"/>
                     <Button x:Name="stop" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess1Stop"/>
@@ -48,11 +50,11 @@
                 <ComboBox x:Name="ProcessSelect_Copy" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True"/>
                 <Label x:Name="Time_Copy" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
                 <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="HH2" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="MM2" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="SS:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="SS2" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <StackPanel x:Name="ButtonsPanel_Copy" Height="35" VerticalAlignment="Top" Width="65" Margin="15,0,0,0">
                     <Button x:Name="start1" Content="Start" Height="17.5" VerticalAlignment="Top" Background="#FF40F433" Opacity="0.9" Padding="2,-2,1,1" ScrollViewer.CanContentScroll="True" Margin="0" Click="ObserverdProcess2Start"/>
                     <Button x:Name="stop1" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess2Stop"/>
@@ -62,70 +64,14 @@
                 <ComboBox x:Name="ProcessSelect_Copy1" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True"/>
                 <Label x:Name="Time_Copy1" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
                 <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="HH3" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="MM3" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="SS:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
+                <TextBox x:Name="SS3" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <StackPanel x:Name="ButtonsPanel_Copy1" Height="35" VerticalAlignment="Top" Width="65" Margin="15,0,0,0">
                     <Button x:Name="start2" Content="Start" Height="17.5" VerticalAlignment="Top" Background="#FF40F433" Opacity="0.9" Padding="2,-2,1,1" ScrollViewer.CanContentScroll="True" Margin="0" Click="ObserverdProcess3Start"/>
                     <Button x:Name="stop2" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess3Stop"/>
-                </StackPanel>
-            </StackPanel>
-            <StackPanel x:Name="ObserverdProcess4" HorizontalAlignment="Left" Height="35" Margin="10,20,0,0" Width="563.6" Orientation="Horizontal">
-                <ComboBox x:Name="ProcessSelect_Copy2" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True"/>
-                <Label x:Name="Time_Copy2" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
-                <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <Label Content="SS:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <StackPanel x:Name="ButtonsPanel_Copy2" Height="35" VerticalAlignment="Top" Width="65" Margin="15,0,0,0">
-                    <Button x:Name="start3" Content="Start" Height="17.5" VerticalAlignment="Top" Background="#FF40F433" Opacity="0.9" Padding="2,-2,1,1" Margin="0" Click="ObserverdProcess4Start" ScrollViewer.CanContentScroll="True"/>
-                    <Button x:Name="stop3" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess4Stop"/>
-                </StackPanel>
-            </StackPanel>
-            <StackPanel x:Name="ObserverdProcess5" HorizontalAlignment="Left" Height="35" Margin="10,20,0,0" Width="563.6" Orientation="Horizontal">
-                <ComboBox x:Name="ProcessSelect_Copy3" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True"/>
-                <Label x:Name="Time_Copy3" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
-                <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <Label Content="SS:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <StackPanel x:Name="ButtonsPanel_Copy3" Height="35" VerticalAlignment="Top" Width="65" Margin="15,0,0,0">
-                    <Button x:Name="start4" Content="Start" Height="17.5" VerticalAlignment="Top" Background="#FF40F433" Opacity="0.9" Padding="2,-2,1,1" ScrollViewer.CanContentScroll="True" Margin="0" Click="ObserverdProcess5Start"/>
-                    <Button x:Name="stop4" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess5Stop"/>
-                </StackPanel>
-            </StackPanel>
-            <StackPanel x:Name="ObserverdProcess6" HorizontalAlignment="Left" Height="35" Margin="10,20,0,0" Width="563.6" Orientation="Horizontal">
-                <ComboBox x:Name="ProcessSelect_Copy4" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True"/>
-                <Label x:Name="Time_Copy4" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
-                <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <Label Content="SS:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <StackPanel x:Name="ButtonsPanel_Copy4" Height="35" VerticalAlignment="Top" Width="65" Margin="15,0,0,0">
-                    <Button x:Name="start5" Content="Start" Height="17.5" VerticalAlignment="Top" Background="#FF40F433" Opacity="0.9" Padding="2,-2,1,1" ScrollViewer.CanContentScroll="True" Margin="0" Click="ObserverdProcess6Start"/>
-                    <Button x:Name="stop5" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess6Stop"/>
-                </StackPanel>
-            </StackPanel>
-            <StackPanel x:Name="ObserverdProcess7" HorizontalAlignment="Left" Height="35" Margin="10,20,0,0" Width="563.6" Orientation="Horizontal">
-                <ComboBox x:Name="ProcessSelect_Copy5" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True"/>
-                <Label x:Name="Time_Copy5" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
-                <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <Label Content="SS:" Height="35" VerticalAlignment="Top" Width="30"/>
-                <TextBox Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
-                <StackPanel x:Name="ButtonsPanel_Copy5" Height="35" VerticalAlignment="Top" Width="65" Margin="15,0,0,0">
-                    <Button x:Name="start6" Content="Start" Height="17.5" VerticalAlignment="Top" Background="#FF40F433" Opacity="0.9" Padding="2,-2,1,1" ScrollViewer.CanContentScroll="True" Margin="0" Click="ObserverdProcess7Start"/>
-                    <Button x:Name="stop6" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess7Stop"/>
                 </StackPanel>
             </StackPanel>
         </StackPanel>

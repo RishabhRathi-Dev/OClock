@@ -1,0 +1,20 @@
+﻿<Window x:Name="NotifyWindow" x:Class="OClock.NotificationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:OClock"
+        mc:Ignorable="d"
+        Title="NotificationWindow" Height="106.4" Width="323.2" WindowStyle="None" ResizeMode="NoResize" SizeToContent="WidthAndHeight">
+    <Grid HorizontalAlignment="Left" Height="106.4" VerticalAlignment="Top" Width="323.2">
+        <StackPanel x:Name="MainContentStackPanel" HorizontalAlignment="Left" Height="106.4" VerticalAlignment="Top" Width="238.2" Margin="85,0,0,0">
+            <Label x:Name="ProgramNameLabel" Content="Program Name" Height="40" FontSize="18" HorizontalAlignment="Center"/>
+            <Label x:Name="TimeUpLabel" Content="Time Up" Height="65" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+        </StackPanel>
+        <Label x:Name="LogoLabel" Content="" HorizontalAlignment="Left" Height="106.4" VerticalAlignment="Top" Width="80">
+            <Label.Background>
+                <ImageBrush ImageSource="O_CLOCK_A_TIME_MANAGEMENT_SOFTWARE__1_-removebg-preview.png" Stretch="UniformToFill"/>
+            </Label.Background>
+        </Label>
+    </Grid>
+</Window>
