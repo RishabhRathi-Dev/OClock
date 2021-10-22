@@ -24,7 +24,7 @@ using System.Threading;
 // Big issue :: Games from launchers are not in the list and they run by there own name :: can be solved by allowing user to enter name outside autocomplete
 
 // Known Issues ::
-// 1. Notify condition is not working 
+// 1. Closing App inbetween is not stoping stopwatch
 
 namespace OClock
 {

@@ -5,36 +5,47 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:OClock"
         mc:Ignorable="d"
-        Title="OClock" Height="450" Width="800" WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize" BorderThickness="0,0,0,0" SnapsToDevicePixels="True">
+        Title="OClock" Height="471.2" Width="800" WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize" BorderThickness="0,0,0,0" SnapsToDevicePixels="True">
     <Grid>
-        <StackPanel x:Name="LeftMenu" HorizontalAlignment="Left" Height="400.4" Margin="10,10,0,0" VerticalAlignment="Top" Width="175">
+        <StackPanel x:Name="LeftMenu" HorizontalAlignment="Left" Height="420.8" Margin="5,5,0,5" VerticalAlignment="Top" Width="175">
             <TabControl x:Name="Pages" Height="400">
-                <TabItem x:Name="CalenderAndEvents" Header="Calender">
+                <TabItem x:Name="CalenderAndEvents" Header="Calendar" FontWeight="Bold">
                     <Grid Background="#FFE5E5E5">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="87*"/>
                             <ColumnDefinition Width="82*"/>
                         </Grid.ColumnDefinitions>
                         <Calendar HorizontalAlignment="Left" Margin="0,10,0,0" VerticalAlignment="Top" Width="169" Grid.ColumnSpan="2"/>
-                    </Grid>
-                </TabItem>
-                <TabItem x:Name="ToDoSection" Header="To Do ">
-                    <Grid Background="#FFE5E5E5">
-                        <ScrollViewer x:Name="ToDoListScrollViewer" HorizontalAlignment="Left" Height="372" Margin="-3,0.04,0,0" VerticalAlignment="Top" Width="172">
-                            <StackPanel x:Name="ToDoListStack" Height="372" Width="162">
-                                <Button x:Name="ToDoListAddButton" Content="+" HorizontalAlignment="Left" Height="35" Width="152"/>
-                            </StackPanel>
+                        <Button x:Name="EventsAddButton" Content="+" HorizontalAlignment="Left" Height="30" Margin="32,177.967,0,0" VerticalAlignment="Top" Width="50" Grid.Column="1" FontWeight="Normal"/>
+                        <Label x:Name="EventsHeaderLabel" Grid.ColumnSpan="2" Content="Events" HorizontalAlignment="Left" Height="27.927" Margin="-3,180.04,0,0" VerticalAlignment="Top" Width="117" FontWeight="Bold"/>
+                        <ScrollViewer x:Name="EventsScrollViewer" Grid.ColumnSpan="2" HorizontalAlignment="Left" Height="162" Margin="0,210.04,0,0" VerticalAlignment="Top" Width="169" VerticalScrollBarVisibility="Hidden">
+                            <StackPanel x:Name="EventsStackPanel" Height="155.536" Width="165.25"/>
                         </ScrollViewer>
                     </Grid>
                 </TabItem>
+                <TabItem x:Name="ToDoSection" Header="To Do " FontWeight="Bold">
+                    <Grid Background="#FFE5E5E5">
+                        <Button x:Name="ToDoListAddButton" Content="+" HorizontalAlignment="Left" Width="142" Margin="0,0,0,337.04" FontWeight="Normal"/>
+                        <ScrollViewer x:Name="ToDoListScrollViewer" HorizontalAlignment="Left" Height="337.04" Margin="-3,35,0,0" VerticalAlignment="Top" Width="172" VerticalScrollBarVisibility="Hidden">
+                            <StackPanel x:Name="ToDoListStack" Height="372" Width="162"/>
+                        </ScrollViewer>
+                        <Button x:Name="PopButton" Content="Pop" HorizontalAlignment="Left" Height="34.96" Margin="142,0.04,0,0" VerticalAlignment="Top" Width="27" FontWeight="Normal"/>
+                    </Grid>
+                </TabItem>
             </TabControl>
+            <StackPanel x:Name="OtherButtons" HorizontalAlignment="Left" Height="20" Width="175" Orientation="Horizontal">
+                <Button x:Name="SettingsButton" Content="Settings" HorizontalAlignment="Left" Height="20" Margin="0" Width="80"/>
+                <Button x:Name="CategoriesButton" Content="Categories" HorizontalAlignment="Left" Height="20" Width="90" Margin="5,0,0,0"/>
+            </StackPanel>
         </StackPanel>
-        <StackPanel x:Name="RightPanel" HorizontalAlignment="Left" Height="400.4" Margin="200,10,0,0" VerticalAlignment="Top" Width="583.6">
-            <StackPanel x:Name="DataStackPanel" HorizontalAlignment="Left" Height="210" Width="583.6"/>
+        <StackPanel x:Name="RightPanel" HorizontalAlignment="Left" Height="420.8" Margin="190,5,0,0" VerticalAlignment="Top" Width="594">
+            <StackPanel x:Name="DataStackPanel" HorizontalAlignment="Left" Height="240" Width="594">
+
+            </StackPanel>
             <Label x:Name="TimerHeading" Content="Timer" HorizontalAlignment="Left" Height="25" Margin="5,0,0,0" Width="568.6" FontWeight="Bold" FontSize="14"/>
-            <StackPanel x:Name="ObservedProcess1" HorizontalAlignment="Left" Height="35" Margin="10,10,0,0" Width="563.6" Orientation="Horizontal">
+            <StackPanel x:Name="ObservedProcess1" HorizontalAlignment="Left" Height="35" Margin="10,10,0,0" Width="573.6" Orientation="Horizontal">
                 <ComboBox x:Name="ProcessSelect" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True" UseLayoutRounding="False"/>
-                <Label x:Name="Time" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
+                <Label x:Name="Time" Content="Time :" Height="35" VerticalAlignment="Top" Width="130" HorizontalContentAlignment="Center"/>
                 <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
                 <TextBox x:Name="HH1" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
@@ -46,9 +57,9 @@
                     <Button x:Name="stop" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess1Stop"/>
                 </StackPanel>
             </StackPanel>
-            <StackPanel x:Name="ObserverdProcess2" HorizontalAlignment="Left" Height="35" Margin="10,20,0,0" Width="563.6" Orientation="Horizontal">
+            <StackPanel x:Name="ObserverdProcess2" HorizontalAlignment="Left" Height="35" Margin="10,20,0,0" Width="573.6" Orientation="Horizontal">
                 <ComboBox x:Name="ProcessSelect_Copy" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True"/>
-                <Label x:Name="Time_Copy" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
+                <Label x:Name="Time_Copy" Content="Time :" Height="35" VerticalAlignment="Top" Width="130" HorizontalContentAlignment="Center"/>
                 <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
                 <TextBox x:Name="HH2" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
@@ -60,9 +71,9 @@
                     <Button x:Name="stop1" Content="Stop" Height="17.5" Margin="0" VerticalAlignment="Top" Background="#FFD60C0C" Padding="2,-2,1,1" UseLayoutRounding="True" Opacity="0.9" Click="ObserverdProcess2Stop"/>
                 </StackPanel>
             </StackPanel>
-            <StackPanel x:Name="ObserverdProcess3" HorizontalAlignment="Left" Height="35" Margin="10,20,0,0" Width="563.6" Orientation="Horizontal">
+            <StackPanel x:Name="ObserverdProcess3" HorizontalAlignment="Left" Height="35" Margin="10,20,0,0" Width="573.6" Orientation="Horizontal">
                 <ComboBox x:Name="ProcessSelect_Copy1" Width="170" IsEditable="True" Margin="0,0,0,0" Padding="5,6,2,2" ScrollViewer.CanContentScroll="True"/>
-                <Label x:Name="Time_Copy1" Content="Time :" Height="35" VerticalAlignment="Top" Width="120" HorizontalContentAlignment="Center"/>
+                <Label x:Name="Time_Copy1" Content="Time :" Height="35" VerticalAlignment="Top" Width="130" HorizontalContentAlignment="Center"/>
                 <Label Content="HH:" Height="35" VerticalAlignment="Top" Width="30"/>
                 <TextBox x:Name="HH3" Height="18" Margin="0,4,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="30" TextAlignment="Center" MaxLength="2"/>
                 <Label Content="MM:" Height="35" VerticalAlignment="Top" Width="35"/>
