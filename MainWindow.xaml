@@ -5,9 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:OClock"
         mc:Ignorable="d"
-        Title="OClock" Height="471.2" Width="800" WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize" BorderThickness="0,0,0,0" SnapsToDevicePixels="True">
+        xmlns:tb="http://www.hardcodet.net/taskbar"
+        Title="OClock" Height="471.2" Width="800" WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize" BorderThickness="0,0,0,0" SnapsToDevicePixels="True" Closing="AttemptToClose">
     <Grid>
-        <StackPanel x:Name="LeftMenu" HorizontalAlignment="Left" Height="420.8" Margin="5,5,0,5" VerticalAlignment="Top" Width="175">
+        <StackPanel x:Name="LeftMenu" HorizontalAlignment="Left" Height="420.8" Margin="5,5,0,0" VerticalAlignment="Top" Width="175">
             <TabControl x:Name="Pages" Height="400">
                 <TabItem x:Name="CalenderAndEvents" Header="Calendar" FontWeight="Bold">
                     <Grid Background="#FFE5E5E5">
@@ -34,11 +35,11 @@
                 </TabItem>
             </TabControl>
             <StackPanel x:Name="OtherButtons" HorizontalAlignment="Left" Height="20" Width="175" Orientation="Horizontal">
-                <Button x:Name="SettingsButton" Content="Settings" HorizontalAlignment="Left" Height="20" Margin="0" Width="80"/>
-                <Button x:Name="CategoriesButton" Content="Categories" HorizontalAlignment="Left" Height="20" Width="90" Margin="5,0,0,0"/>
+                <Button x:Name="SettingsButton" Content="Settings" HorizontalAlignment="Left" Height="20" Margin="0" Width="80" Click="SettingsButtonClicked"/>
+                <Button x:Name="CategoriesButton" Content="Categories" HorizontalAlignment="Left" Height="20" Width="90" Margin="5,0,0,0" Click="CategoriesButtonClicked"/>
             </StackPanel>
         </StackPanel>
-        <StackPanel x:Name="RightPanel" HorizontalAlignment="Left" Height="420.8" Margin="190,5,0,0" VerticalAlignment="Top" Width="594">
+        <StackPanel x:Name="RightPanel" HorizontalAlignment="Left" Height="420.8" Margin="190,5,0,0" VerticalAlignment="Top" Width="594" Grid.ColumnSpan="2">
             <StackPanel x:Name="DataStackPanel" HorizontalAlignment="Left" Height="240" Width="594">
 
             </StackPanel>
@@ -86,6 +87,23 @@
                 </StackPanel>
             </StackPanel>
         </StackPanel>
+        <Grid x:Name="SettingsGrid" HorizontalAlignment="Left" Height="400" Margin="5,5,0,0" VerticalAlignment="Top" Width="175" Background="White" Visibility="Hidden">
+            <Label x:Name="SettingsHeadingLabel" Content="Settings" HorizontalAlignment="Left" Height="30" Margin="10,10,0,0" VerticalAlignment="Top" Width="110" FontWeight="Bold"/>
+            <Button x:Name="ReturnButtonSettings" Content="Return" HorizontalAlignment="Left" Height="30" Margin="120,10,0,0" VerticalAlignment="Top" Width="45" Click="ReturnButtonFromSettingsClicked"/>
+            <Button x:Name="AddProgramButton" Content="Add Program" HorizontalAlignment="Left" Height="20" Margin="45,90,0,0" VerticalAlignment="Top" Width="90"/>
+            <TextBox x:Name="AddProgramTextBox" HorizontalAlignment="Left" Height="20" Margin="10,65,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="155"/>
+            <CheckBox x:Name="CheckBoxForRunOnStartup" Content="Run on Startup" HorizontalAlignment="Left" Height="20" Margin="10,130,0,0" VerticalAlignment="Top" Width="155" Checked="CheckedToRunOnStartUp" Unchecked="RunOnStartupUnchecked"/>
+        </Grid>
+        <Grid x:Name="CategoriesGrid" HorizontalAlignment="Left" Height="400" Margin="5,5,0,0" VerticalAlignment="Top" Width="175" Background="White" Visibility="Hidden">
+            <Label x:Name="CategoriesHeadingLabel" Content="Categories" HorizontalAlignment="Left" Height="30" Margin="10,10,0,0" VerticalAlignment="Top" Width="110" FontWeight="Bold"/>
+            <Button x:Name="ReturnButtonCategories" Content="Return" HorizontalAlignment="Left" Height="30" Margin="120,10,0,0" VerticalAlignment="Top" Width="45" Click="ReturnButtonFromCategoriesClicked"/>
+        </Grid>
+
+
+        <tb:TaskbarIcon
+      IconSource="/O_CLOCK_A_TIME_MANAGEMENT_SOFTWARE__1_-removebg-preview.ico"
+      ToolTipText="OClock" TrayMouseDoubleClick="TrayIconGotDoubleClicked" Grid.ColumnSpan="2" />
 
     </Grid>
+
 </Window>
