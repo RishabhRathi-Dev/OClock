@@ -19,12 +19,14 @@ using System.IO;
 using System.Management;
 using System.Management.Instrumentation;
 using System.Threading;
+using Hardcodet;
+using WPFCustomMessageBox;
 
 
 // Big issue :: Games from launchers are not in the list and they run by there own name :: can be solved by allowing user to enter name outside autocomplete
 
 // Known Issues ::
-// 1. Closing App inbetween is not stoping stopwatch
+
 
 namespace OClock
 {
@@ -38,6 +40,8 @@ namespace OClock
         Stopwatch FirstMonitoredProcessWatch = new Stopwatch();
         Stopwatch SecondMonitoredProcessWatch = new Stopwatch();
         Stopwatch ThirdMonitoredProcessWatch = new Stopwatch();
+
+        // Hardcodet.Wpf.TaskbarNotification.TaskbarIcon taskbarIcon = new Hardcodet.Wpf.TaskbarNotification.TaskbarIcon();
 
         public MainWindow()
         {
@@ -53,7 +57,6 @@ namespace OClock
 
             //ListPrint(DownloadedSoftwareList); //for debugging purpose
             //ListPrint(MonitoredProcessList); //for debugging purpose
-
             CheckProcess();
         }
 
@@ -142,13 +145,22 @@ namespace OClock
 
                 if (ProcessStatus[i] == "true")
                 {
+                    Dictionary<int, bool> Cumulative = new Dictionary<int, bool>(); // Dictionary is used for direct searching O(1) when you know what you want
+
+                    int justforsakeofkey = 0;
+
                     foreach (Process p in Process.GetProcesses())
                     {
-                        
                         // this if make sure timer does not start without taking input
                         if (MonitoredProcessList[i].Length <= 1)
                         {
                             break;
+                        }
+
+                        if (p.MainWindowTitle.ToString().Length <= 1)
+                        {
+                            // This reduces the load for the further checking as any of 1 or 0 length is not a process worth checking
+                            continue;
                         }
                         
 
@@ -161,31 +173,51 @@ namespace OClock
                         SearchString = SearchString.ToUpper();
 
                         bool DoesIt = MainWinTitle.Contains(SearchString);
+                        Cumulative.Add(justforsakeofkey, DoesIt);
 
-                        // Console.WriteLine(MainWinTitle, SearchString, DoesIt);
+                        justforsakeofkey++;
 
-                        if (DoesIt)
-                        {
-                            // Console.WriteLine(MonitoredProcessList[i]); // For debugging Purpose
-
-                            switch (i)
-                            {
-                                case 0:
-                                    FirstMonitoredProcessWatch.Start();
-                                    break;
-
-                                case 1:
-                                    SecondMonitoredProcessWatch.Start();
-                                    break;
-
-                                case 2:
-                                    ThirdMonitoredProcessWatch.Start();
-                                    break;
-                            }
-
-                        }
-
+                        //Console.WriteLine(MainWinTitle, SearchString, DoesIt);
                     }
+
+                    if (Cumulative.ContainsValue(true))
+                    {
+                        // Console.WriteLine("True runs"); // For debugging purpose
+                        switch (i)
+                        {
+                            case 0:
+                                FirstMonitoredProcessWatch.Start();
+                                break;
+
+                            case 1:
+                                SecondMonitoredProcessWatch.Start();
+                                break;
+
+                            case 2:
+                                ThirdMonitoredProcessWatch.Start();
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        // Console.WriteLine("False runs"); // For debugging purpose
+                        switch (i)
+                        {
+                            case 0:
+                                FirstMonitoredProcessWatch.Stop();
+                                break;
+
+                            case 1:
+                                SecondMonitoredProcessWatch.Stop();
+                                break;
+
+                            case 2:
+                                ThirdMonitoredProcessWatch.Stop();
+                                break;
+                        }
+                    }
+
+                    Cumulative.Clear();
 
                 }
 
@@ -435,5 +467,78 @@ namespace OClock
             ThirdMonitoredProcessWatch.Stop();
             ProcessStatus[2] = "false";
         }
+
+        // Settings and Categories Controls
+
+        private void SettingsButtonClicked(object sender, RoutedEventArgs e)
+        {
+            CategoriesGrid.Visibility = Visibility.Hidden;
+            SettingsGrid.Visibility = Visibility.Visible;
+        }
+
+        private void ReturnButtonFromSettingsClicked(object sender, RoutedEventArgs e)
+        {
+            SettingsGrid.Visibility = Visibility.Hidden;
+        }
+
+        private void ReturnButtonFromCategoriesClicked(object sender, RoutedEventArgs e)
+        {
+            CategoriesGrid.Visibility = Visibility.Hidden;
+        }
+
+        private void CategoriesButtonClicked(object sender, RoutedEventArgs e)
+        {
+            SettingsGrid.Visibility = Visibility.Hidden;
+            CategoriesGrid.Visibility = Visibility.Visible;
+        }
+
+        private void CheckedToRunOnStartUp(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            key.SetValue("OClock", System.Reflection.Assembly.GetExecutingAssembly().Location);
+        }
+
+        private void RunOnStartupUnchecked(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            key.DeleteValue("OClock", false);
+        }
+
+        private void TrayIconGotDoubleClicked(object sender, RoutedEventArgs e)
+        {
+            MainWindowDesign.WindowState = WindowState.Normal;
+            MainWindowDesign.ShowInTaskbar = true;
+            
+            MainWindowDesign.Topmost = true;
+            MainWindowDesign.Topmost = false;
+            MainWindowDesign.Focus();
+            //Console.WriteLine("Double Click Registered!!!!");
+        }
+
+        private void AttemptToClose(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            ///<summary>
+            ///This function is to prevent direct closure of application, it gives an option to minimize to tray
+            /// </summary>
+
+            var MessageBoxResult = CustomMessageBox.ShowYesNoCancel("Are you sure you want to close the window?",
+         "OClock", "Yes", "Minimize to System tray", "Cancel");
+            
+            if (MessageBoxResult != MessageBoxResult.Yes && MessageBoxResult != MessageBoxResult.No)
+            {
+                e.Cancel = true;
+            }
+
+            else if (MessageBoxResult == MessageBoxResult.No)
+            {
+                MainWindowDesign.WindowState = WindowState.Minimized;
+                MainWindowDesign.ShowInTaskbar = false;
+                e.Cancel = true;
+
+                // Console.WriteLine("Worked!!!"); //For Debugging Purpose
+            }
+
+        }
+
     }
 }
