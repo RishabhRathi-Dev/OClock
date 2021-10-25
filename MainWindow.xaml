@@ -10,27 +10,24 @@
     <Grid>
         <StackPanel x:Name="LeftMenu" HorizontalAlignment="Left" Height="420.8" Margin="5,5,0,0" VerticalAlignment="Top" Width="175">
             <TabControl x:Name="Pages" Height="400">
-                <TabItem x:Name="CalenderAndEvents" Header="Calendar" FontWeight="Bold">
+                <TabItem x:Name="CalenderAndEvents" Header="Calendar" FontFamily="Segoe UI" FontWeight="Bold">
                     <Grid Background="#FFE5E5E5">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="87*"/>
-                            <ColumnDefinition Width="82*"/>
-                        </Grid.ColumnDefinitions>
-                        <Calendar HorizontalAlignment="Left" Margin="0,10,0,0" VerticalAlignment="Top" Width="169" Grid.ColumnSpan="2"/>
-                        <Button x:Name="EventsAddButton" Content="+" HorizontalAlignment="Left" Height="30" Margin="32,177.967,0,0" VerticalAlignment="Top" Width="50" Grid.Column="1" FontWeight="Normal"/>
+
+                        <Calendar x:Name="CalendarOfCalendarAndEvents" HorizontalAlignment="Left" Margin="0,10,0,0" VerticalAlignment="Top" Width="169" Grid.ColumnSpan="2" FontWeight="Normal"/>
+                        <Button x:Name="EventsAddButton" Content="+" HorizontalAlignment="Left" Height="30" Margin="116,177.967,0,0" VerticalAlignment="Top" Width="50" Grid.Column="1" FontWeight="Normal" Click="EventsAddButtonClicked"/>
                         <Label x:Name="EventsHeaderLabel" Grid.ColumnSpan="2" Content="Events" HorizontalAlignment="Left" Height="27.927" Margin="-3,180.04,0,0" VerticalAlignment="Top" Width="117" FontWeight="Bold"/>
-                        <ScrollViewer x:Name="EventsScrollViewer" Grid.ColumnSpan="2" HorizontalAlignment="Left" Height="162" Margin="0,210.04,0,0" VerticalAlignment="Top" Width="169" VerticalScrollBarVisibility="Hidden">
-                            <StackPanel x:Name="EventsStackPanel" Height="155.536" Width="165.25"/>
+                        <ScrollViewer x:Name="EventsScrollViewer" HorizontalAlignment="Left" Margin="0,210.04,0,0" VerticalAlignment="Top" VerticalScrollBarVisibility="Hidden" FontWeight="Normal" Height="162" Width="169">
+                            <StackPanel x:Name="EventsStackPanel"/>
                         </ScrollViewer>
                     </Grid>
                 </TabItem>
                 <TabItem x:Name="ToDoSection" Header="To Do " FontWeight="Bold">
                     <Grid Background="#FFE5E5E5">
-                        <Button x:Name="ToDoListAddButton" Content="+" HorizontalAlignment="Left" Width="142" Margin="0,0,0,337.04" FontWeight="Normal"/>
-                        <ScrollViewer x:Name="ToDoListScrollViewer" HorizontalAlignment="Left" Height="337.04" Margin="-3,35,0,0" VerticalAlignment="Top" Width="172" VerticalScrollBarVisibility="Hidden">
-                            <StackPanel x:Name="ToDoListStack" Height="372" Width="162"/>
+                        <Button x:Name="ToDoListAddButton" Content="+" HorizontalAlignment="Left" Width="142" Margin="0,0,0,337.04" FontWeight="Normal" Click="ToDoListAddButtonClicked"/>
+                        <ScrollViewer x:Name="ToDoListScrollViewer" HorizontalAlignment="Left" Height="337.04" Margin="-3,35,0,0" VerticalAlignment="Top" Width="172" VerticalScrollBarVisibility="Hidden" FontWeight="Normal">
+                            <StackPanel x:Name="ToDoListStack"/>
                         </ScrollViewer>
-                        <Button x:Name="PopButton" Content="Pop" HorizontalAlignment="Left" Height="34.96" Margin="142,0.04,0,0" VerticalAlignment="Top" Width="27" FontWeight="Normal"/>
+                        <Button x:Name="PopButton" Content="Pop" HorizontalAlignment="Left" Height="34.96" Margin="142,0.04,0,0" VerticalAlignment="Top" Width="27" FontWeight="Normal" Click="ToDoPopButtonClicked"/>
                     </Grid>
                 </TabItem>
             </TabControl>
@@ -90,7 +87,7 @@
         <Grid x:Name="SettingsGrid" HorizontalAlignment="Left" Height="400" Margin="5,5,0,0" VerticalAlignment="Top" Width="175" Background="White" Visibility="Hidden">
             <Label x:Name="SettingsHeadingLabel" Content="Settings" HorizontalAlignment="Left" Height="30" Margin="10,10,0,0" VerticalAlignment="Top" Width="110" FontWeight="Bold"/>
             <Button x:Name="ReturnButtonSettings" Content="Return" HorizontalAlignment="Left" Height="30" Margin="120,10,0,0" VerticalAlignment="Top" Width="45" Click="ReturnButtonFromSettingsClicked"/>
-            <Button x:Name="AddProgramButton" Content="Add Program" HorizontalAlignment="Left" Height="20" Margin="45,90,0,0" VerticalAlignment="Top" Width="90"/>
+            <Button x:Name="AddProgramButton" Content="Add Program" HorizontalAlignment="Left" Height="20" Margin="45,90,0,0" VerticalAlignment="Top" Width="90" Click="AddProgramButtonFromSettingsClicked"/>
             <TextBox x:Name="AddProgramTextBox" HorizontalAlignment="Left" Height="20" Margin="10,65,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="155"/>
             <CheckBox x:Name="CheckBoxForRunOnStartup" Content="Run on Startup" HorizontalAlignment="Left" Height="20" Margin="10,130,0,0" VerticalAlignment="Top" Width="155" Checked="CheckedToRunOnStartUp" Unchecked="RunOnStartupUnchecked"/>
         </Grid>
@@ -100,9 +97,15 @@
         </Grid>
 
 
-        <tb:TaskbarIcon
+        <tb:TaskbarIcon x:Name="OClockTaskbarIcon"
       IconSource="/O_CLOCK_A_TIME_MANAGEMENT_SOFTWARE__1_-removebg-preview.ico"
-      ToolTipText="OClock" TrayMouseDoubleClick="TrayIconGotDoubleClicked" Grid.ColumnSpan="2" />
+      ToolTipText="OClock" TrayMouseDoubleClick="TrayIconGotDoubleClicked" Grid.ColumnSpan="2">
+            <tb:TaskbarIcon.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Exit" Click="ExitMenuItemClicked"/>
+                </ContextMenu>
+            </tb:TaskbarIcon.ContextMenu>
+        </tb:TaskbarIcon>
 
     </Grid>
 
