@@ -23,8 +23,6 @@ using Hardcodet;
 using WPFCustomMessageBox;
 
 
-// Big issue :: Games from launchers are not in the list and they run by there own name :: can be solved by allowing user to enter name outside autocomplete
-
 // Known Issues ::
 
 
@@ -35,6 +33,8 @@ namespace OClock
         List<dynamic> MonitoredProcessList = new List<dynamic>(3) { "", "", "" }; // for keeping track of software(process) we are monitoring
         List<dynamic> DownloadedSoftwareList = new List<dynamic>(); // for keeping the list of downloaded software on the system
         List<dynamic> ProcessStatus = new List<dynamic>(3) { "", "", "" }; // for keeping record of the status of the monitored process using status like true(run), false(stop) and notify(notify and stop)
+        List<string> ToDoList = new List<string>();
+        Dictionary<DateTime, string> EventsList = new Dictionary<DateTime, string>();
 
         // Stopwatches for the timers
         Stopwatch FirstMonitoredProcessWatch = new Stopwatch();
@@ -229,7 +229,20 @@ namespace OClock
 
                 else
                 {
+                    switch (i)
+                    {
+                        case 0:
+                            FirstMonitoredProcessWatch.Stop();
+                            break;
 
+                        case 1:
+                            SecondMonitoredProcessWatch.Stop();
+                            break;
+
+                        case 2:
+                            ThirdMonitoredProcessWatch.Stop();
+                            break;
+                    }
                 }
 
                 TimeLabelUpdate();
@@ -424,8 +437,7 @@ namespace OClock
             }
         }
 
-
-        // Controls-----------------------------
+        // Controls------------------------------------------------------------------
 
         // Start Button Controls 
 
@@ -504,6 +516,17 @@ namespace OClock
             key.DeleteValue("OClock", false);
         }
 
+        private void AddProgramButtonFromSettingsClicked(object sender, RoutedEventArgs e)
+        {
+            DownloadedSoftwareList.Add(AddProgramTextBox.Text);
+            AddProgramTextBox.Clear();
+            EnterDataInCombobox(DownloadedSoftwareList);
+        }
+
+        // More and more control stuff... huh can't categorize any more
+
+        // Essential control for Minimizing to system tray
+
         private void TrayIconGotDoubleClicked(object sender, RoutedEventArgs e)
         {
             MainWindowDesign.WindowState = WindowState.Normal;
@@ -514,6 +537,13 @@ namespace OClock
             MainWindowDesign.Focus();
             //Console.WriteLine("Double Click Registered!!!!");
         }
+
+        private void ExitMenuItemClicked(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown(); // Save implementation needed here........................................!!!!!!!!!!
+        }
+
+        // When Close button is clicked
 
         private void AttemptToClose(object sender, System.ComponentModel.CancelEventArgs e)
         {
@@ -538,6 +568,125 @@ namespace OClock
                 // Console.WriteLine("Worked!!!"); //For Debugging Purpose
             }
 
+        }
+
+        // Pop up for ToDo list
+
+        private void ToDoPopButtonClicked(object sender, RoutedEventArgs e)
+        {
+            MainWindowDesign.WindowState = WindowState.Minimized;
+            MainWindowDesign.ShowInTaskbar = false;
+
+            PopedOutToDoList PTD = new PopedOutToDoList();
+            PTD.Show();
+            PTD.Topmost = true;
+            PTD.Topmost = false;
+            PTD.Focus();
+        }
+
+
+        // Add Events and to do 
+
+        private void EventsAddButtonClicked(object sender, RoutedEventArgs e)
+        {
+            /// <summary>
+            /// This fuction will create a new stackpanel with text box and add buttton; upon clicking add button previous stackpanel
+            /// gets cleared and a label with date and text is placed
+            /// 
+            /// In case of date not being selected a simple message to select date is displayed 
+            /// </summary>
+
+            StackPanel AddStackPanel = new StackPanel();
+            
+            TextBox EventText = new TextBox();
+            EventText.TextWrapping = TextWrapping.Wrap;
+            
+            Button EventTextAddButton = new Button();
+            EventTextAddButton.Content = "Add";
+
+            EventTextAddButton.Click += (s, ee) => {
+                Label DateLabel = new Label();
+                Label EventDetail = new Label();
+
+                string DateAfterTimerRemoval = CalendarOfCalendarAndEvents.SelectedDate.ToString();
+                EventDetail.Content = EventText.Text;
+
+                if (DateAfterTimerRemoval.Length <= 1)
+                {
+                    DateLabel.Content = "Please Select Date";
+                    AddStackPanel.Children.Add(DateLabel);
+                }
+                else if (EventText.Text.Length == 0)
+                {
+                    DateLabel.Content = "Please Enter Event";
+                    AddStackPanel.Children.Add(DateLabel);
+                }
+                else
+                {
+                    DateAfterTimerRemoval = DateAfterTimerRemoval.Substring(0, DateAfterTimerRemoval.Length - 1 - 8);
+                    DateLabel.Content = DateAfterTimerRemoval;
+
+                    AddStackPanel.Children.Clear();
+
+                    AddStackPanel.Children.Add(DateLabel);
+                    AddStackPanel.Children.Add(EventDetail);
+                }
+                
+
+            };
+
+            AddStackPanel.Children.Add(EventText);
+            AddStackPanel.Children.Add(EventTextAddButton);
+
+            EventsStackPanel.Children.Add(AddStackPanel);
+
+        }
+
+        private void ToDoListAddButtonClicked(object sender, RoutedEventArgs e)
+        {
+            /// <summary>
+            /// This fuction creates a stackpanel with textbox and add button upon clicking the add button children of previous stackpanel
+            /// are cleared and a checkbox is added in there place
+            /// 
+            /// When the checkbox is check the parent stackpanel is removed from its parent stackpanel (ToDoListStack)
+            /// 
+            /// If there is no todo text then there is a warning put in the form of label for entering todo in the text box
+            /// </summary>
+
+            StackPanel AddStackPanel = new StackPanel();
+
+            TextBox ToDoText = new TextBox();
+            ToDoText.TextWrapping = TextWrapping.Wrap;
+
+
+            Button ToDoTextAddButton = new Button();
+            ToDoTextAddButton.Content = "Add";
+
+            ToDoTextAddButton.Click += (s, ee) =>
+            {
+                CheckBox ToDoCheckBox = new CheckBox();
+                ToDoCheckBox.Content = ToDoText.Text;
+
+                ToDoCheckBox.Checked += (ss, eee) => {
+                    ToDoListStack.Children.Remove(AddStackPanel);
+                };
+
+                if (ToDoText.Text.Length == 0)
+                {
+                    Label WarningLabelInToDo = new Label();
+                    WarningLabelInToDo.Content = "Please Enter ToDo";
+                    AddStackPanel.Children.Add(WarningLabelInToDo);
+                }
+                else
+                {
+                    AddStackPanel.Children.Clear();
+                    AddStackPanel.Children.Add(ToDoCheckBox);
+                }
+            };
+
+            AddStackPanel.Children.Add(ToDoText);
+            AddStackPanel.Children.Add(ToDoTextAddButton);
+            ToDoListStack.Children.Add(AddStackPanel);
         }
 
     }
