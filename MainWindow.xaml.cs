@@ -21,10 +21,12 @@ using System.Management.Instrumentation;
 using System.Threading;
 using Hardcodet;
 using WPFCustomMessageBox;
+using System.Data.SQLite;
+
 
 
 // Known Issues ::
-
+// knewly added to be added to the list from database
 
 namespace OClock
 {
@@ -34,12 +36,17 @@ namespace OClock
         List<dynamic> DownloadedSoftwareList = new List<dynamic>(); // for keeping the list of downloaded software on the system
         List<dynamic> ProcessStatus = new List<dynamic>(3) { "", "", "" }; // for keeping record of the status of the monitored process using status like true(run), false(stop) and notify(notify and stop)
         List<string> ToDoList = new List<string>();
-        Dictionary<DateTime, string> EventsList = new Dictionary<DateTime, string>();
+        Dictionary<string, string> EventsList = new Dictionary<string, string>(); // 
 
         // Stopwatches for the timers
         Stopwatch FirstMonitoredProcessWatch = new Stopwatch();
         Stopwatch SecondMonitoredProcessWatch = new Stopwatch();
         Stopwatch ThirdMonitoredProcessWatch = new Stopwatch();
+
+        // Threads (Load threads may not work as they will be interecting with UI thread and that has caused problems before)
+        Thread SaveTimeThread;
+        Thread SaveToDoListThread;
+        Thread SaveEventsThread;
 
         // Hardcodet.Wpf.TaskbarNotification.TaskbarIcon taskbarIcon = new Hardcodet.Wpf.TaskbarNotification.TaskbarIcon();
 
@@ -48,7 +55,6 @@ namespace OClock
             /// <summary>
             /// This is the main window code, can call it as driver code block or main loop
             /// </summary>
-            
 
             InitializeComponent(); // initializing componenets of software
             SoftwareList(); // for adding downloaded software in the DownloadedSoftwareList
@@ -57,11 +63,32 @@ namespace OClock
 
             //ListPrint(DownloadedSoftwareList); //for debugging purpose
             //ListPrint(MonitoredProcessList); //for debugging purpose
+            
             CheckProcess();
+
+            SaveTimeThreadLooping();
+
         }
 
+        private async void SaveTimeThreadLooping()
+        {
+            Thread SaveTimeThread = new Thread(SaveTime);
+            SaveTimeThread.Start();
+
+            await Task.Delay(5 * 60 * 1000); // every 5 minutes 
+            
+            SaveTimeThreadLooping();
+        }
+
+        private void SaveToDoListThreadRun()
+        {
+            SaveToDoListThread = new Thread(SaveToDoList);
+            SaveToDoListThread.Start();
+        }
+        
         private void SoftwareList()
         {
+
             /// <summary>
             /// This function works to extract list of downloaded software by getting names of all the uninstallable programs and add it in the DownloadedSoftwareList.
             /// To learn more about this method :
@@ -114,7 +141,7 @@ namespace OClock
 
             }
 
-            DownloadedSoftwareList = ProcessL;
+            DownloadedSoftwareList = ProcessL.ToHashSet().ToList();
 
         }
 
@@ -123,8 +150,8 @@ namespace OClock
             /// <summary>
             /// This function is purely for debugging purpose only, its function is to print list
             /// </summary>
-            
-            foreach(string i in l)
+
+            foreach (string i in l)
             {
                 Console.WriteLine(i);
             }
@@ -162,7 +189,7 @@ namespace OClock
                             // This reduces the load for the further checking as any of 1 or 0 length is not a process worth checking
                             continue;
                         }
-                        
+
 
                         // Checking via searching name in string
 
@@ -246,7 +273,7 @@ namespace OClock
                 }
 
                 TimeLabelUpdate();
-                
+
             }
 
             CheckProcess();
@@ -257,7 +284,7 @@ namespace OClock
             /// <summary>
             /// This function updates the visual display of time program ran on the respective label
             /// </summary>
-            
+
             Time.Content = FirstMonitoredProcessWatch.Elapsed.ToString(@"hh\:mm\:ss");
             Time_Copy.Content = SecondMonitoredProcessWatch.Elapsed.ToString(@"hh\:mm\:ss");
             Time_Copy1.Content = ThirdMonitoredProcessWatch.Elapsed.ToString(@"hh\:mm\:ss");
@@ -272,7 +299,7 @@ namespace OClock
             ///A(h > HH) or B(h == HH) & C(m > MM) or B(h == HH) & D(m == MM) & E(s > SS)
             /// </summary>
 
-            bool result = (E & D & B | C & B | A );
+            bool result = (E & D & B | C & B | A);
             //Console.WriteLine(result);
             return result;
         }
@@ -386,7 +413,7 @@ namespace OClock
                 ProcessSelect.Items.Add(i);
                 ProcessSelect_Copy.Items.Add(i);
                 ProcessSelect_Copy1.Items.Add(i);
-               
+
             }
         }
 
@@ -413,7 +440,7 @@ namespace OClock
             /// <summary>
             /// This function create notification and stops the timer after that 
             /// </summary>
-            
+
             switch (index)
             {
                 case 0:
@@ -436,6 +463,226 @@ namespace OClock
 
             }
         }
+
+
+        // Save and Load ------------------------
+
+        // No need to create a path to save things in doc as if you make executable of this program when it is run database will be created in same directory as executable so it is good for our 
+        // needs
+
+
+        // Loads
+
+        private void LoadToDoList()
+        {
+
+        }
+
+        private void LoadEvents()
+        {
+
+        }
+
+        // Saves
+        private void SaveTime()
+        {
+            bool DataBaseAvailable = false; // if database is available
+            bool SoftwareListTable = false; // if table is made
+
+            // Most of this function is with try since we don't know whether the required thing is available in the database and the possible solution is in the catch
+
+            // Making the list of process still in working
+            Dictionary<string, bool> RunningStatus = new Dictionary<string, bool>();
+
+            foreach (string SM in DownloadedSoftwareList)
+            {
+
+                string ToBeChecked = SM.ToUpper();
+                string databaseString = SM.Replace("'", "\""); // to handle "'"
+
+                foreach (Process p in Process.GetProcesses())
+                {
+                    string MainWinTitle = p.MainWindowTitle.ToString();
+
+                    if (MainWinTitle.Length > 0)
+                    {
+                        MainWinTitle = MainWinTitle.ToUpper();
+                        bool DoesIt = MainWinTitle.Contains(ToBeChecked);
+
+                        if (DoesIt)
+                        {
+                            // incase of two different instances of a single software running
+                            if (!RunningStatus.ContainsKey(databaseString))
+                            {
+                                RunningStatus.Add(databaseString, DoesIt); 
+                            }
+
+                            continue;
+                        }
+
+                        
+                    }
+                }
+            }
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+                
+            }
+            
+            // Check if database has the required table
+            try 
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SoftwareListTable = true;
+            }
+
+            //Console.WriteLine((SoftwareListTable, DataBaseAvailable)); // For debugging purpose
+
+            if (DataBaseAvailable || SoftwareListTable) {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+
+                foreach (string SoftwareName in RunningStatus.Keys){
+
+                    bool isThere = false; // bool to know if the software name is in the database
+
+                    // string SoftwareName = SM.Replace("'", "\""); // to handle "'"   // Handled in RunningStatus itself
+
+                    try
+                    {
+                        string sql = string.Format("SELECT Name FROM SoftwareList WHERE Name = '{0}'", SoftwareName);
+
+                        SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                        var Result = command.ExecuteReader();
+
+                        int InstanceCount = 0; // this checks how many time given software name has occured in our database if it is 1 or more then update it i.e set isThere to true if not then add it
+
+                        while (Result.Read())
+                        {
+                            InstanceCount++;
+                        }
+                        
+                        if (InstanceCount > 0)
+                        {
+                            isThere = true;
+                        }
+
+                        //Console.WriteLine(Result); // For Debugging Purpose
+                    }
+                    catch (SQLiteException)
+                    {
+                        isThere = false;
+                    }
+
+                    if (isThere) { 
+                        string sql1 = string.Format("UPDATE SoftwareList SET Time = Time + {0} WHERE Name = '{1}'", 5, SoftwareName);
+                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                        command1.ExecuteNonQuery();
+                    }
+
+                    else
+                    {
+                        string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time, Category) values ('{0}', {1}, '{2}')", SoftwareName, 0, "Test");
+                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                        command1.ExecuteNonQuery();
+                    }
+
+                    // Console.WriteLine((isThere, DataBaseAvailable, SoftwareListTable)); // For Debugging Purpose
+                }
+
+                DBConnection.Close();
+            }
+        }
+
+        private void SaveToDoList()
+        {
+            bool DataBaseAvailable = false;
+            bool ToDoListTable = false;
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            // Check if database has the required table
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE ToDoList (Task varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                ToDoListTable = true;
+            }
+
+            if (DataBaseAvailable || ToDoListTable)
+            {
+                foreach(string SM in ToDoList)
+                {
+                    string databaseString = SM.Replace("'", "\""); // to handle "'"
+                    SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                    DBConnection.Open();
+                    string sql = string.Format("INSERT INTO ToDoList (Task) values ('{0}')", databaseString);
+                    SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                    command.ExecuteNonQuery();
+                    DBConnection.Close();
+                }
+                
+            }
+        }
+
+        private void UnloadFromToDoList(dynamic content)
+        {
+            string converted = content.ToString();
+            string databaseString = converted.Replace("'", "\"");
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+            DBConnection.Open();
+            string sql = string.Format("DELETE FROM ToDoList WHERE Task = ('{0}')", databaseString);
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            command.ExecuteNonQuery();
+            DBConnection.Close();
+        }
+
+        private void SaveEvents()
+        {
+
+        }
+
 
         // Controls------------------------------------------------------------------
 
@@ -669,6 +916,7 @@ namespace OClock
 
                 ToDoCheckBox.Checked += (ss, eee) => {
                     ToDoListStack.Children.Remove(AddStackPanel);
+                    UnloadFromToDoList(ToDoCheckBox.Content);
                 };
 
                 if (ToDoText.Text.Length == 0)
@@ -679,8 +927,10 @@ namespace OClock
                 }
                 else
                 {
+                    ToDoList.Add(ToDoText.Text); // adding to list for database
                     AddStackPanel.Children.Clear();
                     AddStackPanel.Children.Add(ToDoCheckBox);
+                    SaveToDoListThreadRun();
                 }
             };
 
