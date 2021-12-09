@@ -36,7 +36,7 @@ namespace OClock
         List<dynamic> DownloadedSoftwareList = new List<dynamic>(); // for keeping the list of downloaded software on the system
         List<dynamic> ProcessStatus = new List<dynamic>(3) { "", "", "" }; // for keeping record of the status of the monitored process using status like true(run), false(stop) and notify(notify and stop)
         List<string> ToDoList = new List<string>();
-        Dictionary<string, string> EventsList = new Dictionary<string, string>(); // 
+        Dictionary<int, (string, string)> EventsList = new Dictionary<int, (string, string)>(); // 
 
         // Stopwatches for the timers
         Stopwatch FirstMonitoredProcessWatch = new Stopwatch();
@@ -67,12 +67,13 @@ namespace OClock
             CheckProcess();
 
             SaveTimeThreadLooping();
+            LoadToDoList();
 
         }
 
         private async void SaveTimeThreadLooping()
         {
-            Thread SaveTimeThread = new Thread(SaveTime);
+            SaveTimeThread = new Thread(SaveTime);
             SaveTimeThread.Start();
 
             await Task.Delay(5 * 60 * 1000); // every 5 minutes 
@@ -85,7 +86,13 @@ namespace OClock
             SaveToDoListThread = new Thread(SaveToDoList);
             SaveToDoListThread.Start();
         }
-        
+
+        private void SaveEventsListThreadRun()
+        {
+            SaveEventsThread = new Thread(SaveEvents);
+            SaveEventsThread.Start();
+        }
+
         private void SoftwareList()
         {
 
@@ -475,7 +482,74 @@ namespace OClock
 
         private void LoadToDoList()
         {
+            bool DataBaseAvailable = false;
+            bool ToDoListTable = false;
 
+            ToDoListStack.Children.Clear(); // Clearing residual since we are loading from database
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            // Check if database has the required table
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE ToDoList (Task varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                ToDoListTable = true;
+            }
+
+            if (DataBaseAvailable || ToDoListTable)
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+
+                string sql = "SELECT Task FROM ToDoList";
+
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                var Result = command.ExecuteReader();
+
+                while (Result.Read())
+                {
+                    string ans = Result.GetString(0);
+                    MakeTheLoadedLabel(ans);
+                }
+            }
+        }
+
+        private void MakeTheLoadedLabel(string s)
+        {
+            StackPanel LoadStackPanel = new StackPanel();
+            CheckBox ToDoCheckBox = new CheckBox();
+            ToDoCheckBox.Content = s;
+
+            ToDoCheckBox.Checked += (sssss, eeeee) => {
+                ToDoListStack.Children.Remove(LoadStackPanel);
+                UnloadFromToDoList(ToDoCheckBox.Content);
+                ToDoList.Remove(ToDoCheckBox.Content.ToString());
+            };
+
+            LoadStackPanel.Children.Add(ToDoCheckBox);
+            ToDoListStack.Children.Add(LoadStackPanel);
         }
 
         private void LoadEvents()
@@ -680,6 +754,59 @@ namespace OClock
 
         private void SaveEvents()
         {
+            bool DataBaseAvailable = false;
+            bool EventsListStatus = false;
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            // Check if database has the required table
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE EventsList (Date varchar, Event varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                EventsListStatus = true;
+            }
+
+            if (EventsListStatus || DataBaseAvailable)
+            {
+                for (int i = 0; i < EventsList.Values.Count; i++)
+                {
+                    string date, eventdetail;
+                    (date, eventdetail) = EventsList[i];
+
+                    string DBdate = date.Replace("'", "\"");
+                    string DBeventdetail = eventdetail.Replace("'", "\"");
+
+                    SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                    DBConnection.Open();
+                    string sql = string.Format("INSERT INTO EventsList (Date, Event) values ('{0}', '{1}')", DBdate, DBeventdetail);
+                    SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                    command.ExecuteNonQuery();
+                    DBConnection.Close();
+
+                }
+            }
 
         }
 
@@ -783,6 +910,8 @@ namespace OClock
             MainWindowDesign.Topmost = false;
             MainWindowDesign.Focus();
             //Console.WriteLine("Double Click Registered!!!!");
+
+            LoadToDoList();
         }
 
         private void ExitMenuItemClicked(object sender, RoutedEventArgs e)
@@ -873,10 +1002,14 @@ namespace OClock
                     DateAfterTimerRemoval = DateAfterTimerRemoval.Substring(0, DateAfterTimerRemoval.Length - 1 - 8);
                     DateLabel.Content = DateAfterTimerRemoval;
 
+                    EventsList.Add(EventsList.Keys.Count, (DateAfterTimerRemoval, EventText.Text)); // for adding it to database
+
                     AddStackPanel.Children.Clear();
 
                     AddStackPanel.Children.Add(DateLabel);
                     AddStackPanel.Children.Add(EventDetail);
+
+                    SaveEventsListThreadRun();
                 }
                 
 
@@ -917,6 +1050,7 @@ namespace OClock
                 ToDoCheckBox.Checked += (ss, eee) => {
                     ToDoListStack.Children.Remove(AddStackPanel);
                     UnloadFromToDoList(ToDoCheckBox.Content);
+                    
                 };
 
                 if (ToDoText.Text.Length == 0)
@@ -927,7 +1061,7 @@ namespace OClock
                 }
                 else
                 {
-                    ToDoList.Add(ToDoText.Text); // adding to list for database
+                    ToDoList.Add(ToDoText.Text); // for adding to list for database
                     AddStackPanel.Children.Clear();
                     AddStackPanel.Children.Add(ToDoCheckBox);
                     SaveToDoListThreadRun();
