@@ -27,6 +27,7 @@ using System.Data.SQLite;
 
 // Known Issues ::
 // knewly added to be added to the list from database
+// arranging events according to date in loading
 
 namespace OClock
 {
@@ -68,6 +69,7 @@ namespace OClock
 
             SaveTimeThreadLooping();
             LoadToDoList();
+            LoadEvents();
 
         }
 
@@ -554,7 +556,101 @@ namespace OClock
 
         private void LoadEvents()
         {
+            bool DataBaseAvailable = false;
+            bool EventsListTable = false;
 
+            List<string> deleteList = new List<string>(); 
+
+            EventsStackPanel.Children.Clear(); // Clearing residual since we are loading from database
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            // Check if database has the required table
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE EventsList (Date varchar, Event varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                EventsListTable = true;
+            }
+
+            if (DataBaseAvailable || EventsListTable)
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+
+                string sql = "SELECT * FROM EventsList";
+
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                var Result = command.ExecuteReader();
+
+                while (Result.Read())
+                {
+                    string date = Result.GetString(0);
+                    string eventdetail = Result.GetString(1);
+
+                    DateTime datetime = DateTime.Parse(date); // to load relevant events
+                    
+                    if(datetime >= DateTime.Today)
+                    {
+                        MakeEventForLoad(date, eventdetail);
+                    }
+                    else
+                    {
+                        deleteList.Add(date);
+                    }
+
+                }
+
+                DBConnection.Close();
+            }
+
+            foreach(string s in deleteList)
+            {
+                // separte cause database is getting locked if i am doing it in the else itself
+                string databaseString = s.Replace("'", "\"");
+                SQLiteConnection DBConnection1 = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection1.Open();
+                string sql1 = string.Format("DELETE FROM EventsList WHERE Date = ('{0}')", databaseString);
+                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection1);
+                command1.ExecuteNonQuery();
+                DBConnection1.Close();
+            }
+        }
+        
+        private void MakeEventForLoad(string date, string eventdetail)
+        {
+            StackPanel LoadStackPanel = new StackPanel();
+            Label Date = new Label();
+            Label EventDetail = new Label();
+
+            Date.Content = date;
+            EventDetail.Content = eventdetail;
+
+            LoadStackPanel.Children.Add(Date);
+            LoadStackPanel.Children.Add(EventDetail);
+
+            EventsStackPanel.Children.Add(LoadStackPanel);
         }
 
         // Saves
