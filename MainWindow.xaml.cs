@@ -26,8 +26,8 @@ using System.Data.SQLite;
 
 
 // Known Issues ::
-// knewly added to be added to the list from database
 // arranging events according to date in loading
+
 
 namespace OClock
 {
@@ -43,6 +43,7 @@ namespace OClock
         Stopwatch FirstMonitoredProcessWatch = new Stopwatch();
         Stopwatch SecondMonitoredProcessWatch = new Stopwatch();
         Stopwatch ThirdMonitoredProcessWatch = new Stopwatch();
+        Stopwatch BackGroundStopwatch = new Stopwatch();
 
         // Threads (Load threads may not work as they will be interecting with UI thread and that has caused problems before)
         Thread SaveTimeThread;
@@ -60,7 +61,7 @@ namespace OClock
             InitializeComponent(); // initializing componenets of software
             SoftwareList(); // for adding downloaded software in the DownloadedSoftwareList
 
-            EnterDataInCombobox(DownloadedSoftwareList); // for entrying data from DownloadedSoftwareList to combobox for user to select software to monitor
+            CheckInDataBaseForSavedSoftwareName(); // for entrying data from DownloadedSoftwareList to combobox for user to select software to monitor while loading saved software names from database
 
             //ListPrint(DownloadedSoftwareList); //for debugging purpose
             //ListPrint(MonitoredProcessList); //for debugging purpose
@@ -75,12 +76,19 @@ namespace OClock
 
         private async void SaveTimeThreadLooping()
         {
+            BackGroundStopwatch.Restart();
+            await Task.Delay(5 * 60 * 1000); // every 5 minutes 
+
             SaveTimeThread = new Thread(SaveTime);
             SaveTimeThread.Start();
-
-            await Task.Delay(5 * 60 * 1000); // every 5 minutes 
             
             SaveTimeThreadLooping();
+        }
+
+        private void ImmediateSaveTime()
+        {
+            SaveTimeThread = new Thread(SaveTime);
+            SaveTimeThread.Start();
         }
 
         private void SaveToDoListThreadRun()
@@ -152,6 +160,64 @@ namespace OClock
 
             DownloadedSoftwareList = ProcessL.ToHashSet().ToList();
 
+        }
+
+        private void CheckInDataBaseForSavedSoftwareName()
+        {
+            bool DataBaseAvailable = false;
+            bool SoftwareListTable = false;
+
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            // Check if database has the required table
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SoftwareListTable = true;
+            }
+
+            if (DataBaseAvailable || SoftwareListTable)
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "SELECT * FROM SoftwareList";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                var result = command.ExecuteReader();
+
+                while (result.Read())
+                {
+                    string name = result.GetString(0);
+
+                    if (!DownloadedSoftwareList.Contains(name))
+                    {
+                        DownloadedSoftwareList.Add(name);
+                    }
+                }
+                DBConnection.Close();
+
+                EnterDataInCombobox(DownloadedSoftwareList);
+            }
         }
 
         private void ListPrint(List<dynamic> l)
@@ -664,7 +730,9 @@ namespace OClock
             // Making the list of process still in working
             Dictionary<string, bool> RunningStatus = new Dictionary<string, bool>();
 
-            foreach (string SM in DownloadedSoftwareList)
+            List<dynamic> ForThisThread = DownloadedSoftwareList;
+
+            foreach (string SM in ForThisThread)
             {
 
                 string ToBeChecked = SM.ToUpper();
@@ -765,14 +833,14 @@ namespace OClock
                     }
 
                     if (isThere) { 
-                        string sql1 = string.Format("UPDATE SoftwareList SET Time = Time + {0} WHERE Name = '{1}'", 5, SoftwareName);
+                        string sql1 = string.Format("UPDATE SoftwareList SET Time = Time + {0} WHERE Name = '{1}'", BackGroundStopwatch.Elapsed.TotalMinutes, SoftwareName);
                         SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
                         command1.ExecuteNonQuery();
                     }
 
                     else
                     {
-                        string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time, Category) values ('{0}', {1}, '{2}')", SoftwareName, 0, "Test");
+                        string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", SoftwareName, 0);
                         SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
                         command1.ExecuteNonQuery();
                     }
@@ -780,6 +848,53 @@ namespace OClock
                     // Console.WriteLine((isThere, DataBaseAvailable, SoftwareListTable)); // For Debugging Purpose
                 }
 
+                DBConnection.Close();
+            }
+        }
+
+        private void EnterAddedSoftwareNameInDataBase(string s)
+        {
+            bool DataBaseAvailable = false; // if database is available
+            bool SoftwareListTable = false; // if table is made
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            // Check if database has the required table
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SoftwareListTable = true;
+            }
+
+            if (DataBaseAvailable || SoftwareListTable)
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", s, 0);
+                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                command1.ExecuteNonQuery();
                 DBConnection.Close();
             }
         }
@@ -989,6 +1104,7 @@ namespace OClock
         private void AddProgramButtonFromSettingsClicked(object sender, RoutedEventArgs e)
         {
             DownloadedSoftwareList.Add(AddProgramTextBox.Text);
+            EnterAddedSoftwareNameInDataBase(AddProgramTextBox.Text);
             AddProgramTextBox.Clear();
             EnterDataInCombobox(DownloadedSoftwareList);
         }
@@ -1012,6 +1128,7 @@ namespace OClock
 
         private void ExitMenuItemClicked(object sender, RoutedEventArgs e)
         {
+            ImmediateSaveTime();
             Application.Current.Shutdown(); // Save implementation needed here........................................!!!!!!!!!!
         }
 
@@ -1023,11 +1140,14 @@ namespace OClock
             ///This function is to prevent direct closure of application, it gives an option to minimize to tray
             /// </summary>
 
+            ImmediateSaveTime();
+
             var MessageBoxResult = CustomMessageBox.ShowYesNoCancel("Are you sure you want to close the window?",
          "OClock", "Yes", "Minimize to System tray", "Cancel");
             
             if (MessageBoxResult != MessageBoxResult.Yes && MessageBoxResult != MessageBoxResult.No)
             {
+
                 e.Cancel = true;
             }
 
