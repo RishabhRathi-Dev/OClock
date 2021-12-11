@@ -24,7 +24,7 @@
                 <TabItem x:Name="ToDoSection" Header="To Do " FontWeight="Bold">
                     <Grid Background="#FFE5E5E5">
                         <Button x:Name="ToDoListAddButton" Content="+" HorizontalAlignment="Left" Width="142" Margin="0,0,0,337.04" FontWeight="Normal" Click="ToDoListAddButtonClicked"/>
-                        <ScrollViewer x:Name="ToDoListScrollViewer" HorizontalAlignment="Left" Height="337.04" Margin="-3,35,0,0" VerticalAlignment="Top" Width="172" VerticalScrollBarVisibility="Hidden" FontWeight="Normal">
+                        <ScrollViewer x:Name="ToDoListScrollViewer" HorizontalAlignment="Left" Height="337.04" Margin="0,35,0,0" VerticalAlignment="Top" Width="159" VerticalScrollBarVisibility="Hidden" FontWeight="Normal">
                             <StackPanel x:Name="ToDoListStack"/>
                         </ScrollViewer>
                         <Button x:Name="PopButton" Content="Pop" HorizontalAlignment="Left" Height="34.96" Margin="142,0.04,0,0" VerticalAlignment="Top" Width="27" FontWeight="Normal" Click="ToDoPopButtonClicked"/>
@@ -95,6 +95,9 @@
         <Grid x:Name="CategoriesGrid" HorizontalAlignment="Left" Height="400" Margin="5,5,0,0" VerticalAlignment="Top" Width="175" Background="White" Visibility="Hidden">
             <Label x:Name="CategoriesHeadingLabel" Content="Categories" HorizontalAlignment="Left" Height="30" Margin="10,10,0,0" VerticalAlignment="Top" Width="110" FontWeight="Bold"/>
             <Button x:Name="ReturnButtonCategories" Content="Return" HorizontalAlignment="Left" Height="30" Margin="120,10,0,0" VerticalAlignment="Top" Width="45" Click="ReturnButtonFromCategoriesClicked"/>
+            <ScrollViewer x:Name="CategoriesScrollViewer" HorizontalAlignment="Left" Height="295" Margin="0,95,0,0" VerticalAlignment="Top" Width="175" VerticalScrollBarVisibility="Hidden">
+                <StackPanel x:Name="CategoriesStackPanel" HorizontalAlignment="Left" Height="360" VerticalAlignment="Top" Width="175"/>
+            </ScrollViewer>
         </Grid>
 
 

@@ -27,6 +27,7 @@ using System.Data.SQLite;
 
 // Known Issues ::
 // arranging events according to date in loading
+// either make the categories temp save private inside the function but yea you see how you wanna do it
 
 
 namespace OClock
@@ -38,6 +39,7 @@ namespace OClock
         List<dynamic> ProcessStatus = new List<dynamic>(3) { "", "", "" }; // for keeping record of the status of the monitored process using status like true(run), false(stop) and notify(notify and stop)
         List<string> ToDoList = new List<string>();
         Dictionary<int, (string, string)> EventsList = new Dictionary<int, (string, string)>(); // 
+        Dictionary<string, string> CategoriesTempSave = new Dictionary<string, string>();
 
         // Stopwatches for the timers
         Stopwatch FirstMonitoredProcessWatch = new Stopwatch();
@@ -69,9 +71,10 @@ namespace OClock
             CheckProcess();
 
             SaveTimeThreadLooping();
+
             LoadToDoList();
             LoadEvents();
-
+            LoadCategorySection();
         }
 
         private async void SaveTimeThreadLooping()
@@ -899,6 +902,53 @@ namespace OClock
             }
         }
 
+        private void UpdateCategoriesInDataBase(string SN, string C)
+        {
+            bool DataBaseAvailable = false; // if database is available
+            bool SoftwareListTable = false; // if table is made
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                Connection.Open();
+                DataBaseAvailable = true;
+                Connection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            // Check if database has the required table
+            try
+            {
+                SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                Connection.Open();
+                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, Connection);
+                command.ExecuteNonQuery();
+                Connection.Close();
+            }
+
+            catch (Exception)
+            {
+                SoftwareListTable = true;
+            }
+
+            if (DataBaseAvailable || SoftwareListTable)
+            {
+                SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                Connection.Open();
+                string sql1 = string.Format("UPDATE SoftwareList SET Category = '{1}' WHERE Name = '{0}'", SN, C);
+                SQLiteCommand command1 = new SQLiteCommand(sql1, Connection);
+                command1.ExecuteNonQuery();
+                Connection.Close();
+            }
+        }
+
         private void SaveToDoList()
         {
             bool DataBaseAvailable = false;
@@ -1289,5 +1339,133 @@ namespace OClock
             ToDoListStack.Children.Add(AddStackPanel);
         }
 
+        private void LoadCategorySection()
+        {
+
+            CategoriesStackPanel.Children.Clear();
+
+            StackPanel TopStackPanel = new StackPanel();
+            TopStackPanel.Orientation = Orientation.Horizontal;
+
+            Label TopNameLabel = new Label();
+            Label CategoryLabel = new Label();
+
+            TopNameLabel.Content = "Software Name";
+            CategoryLabel.Content = "Category";
+
+            TopNameLabel.Width = 100;
+            CategoryLabel.Width = 70;
+
+            TopNameLabel.FontWeight = FontWeights.Bold;
+            CategoryLabel.FontWeight = FontWeights.Bold;
+
+            TopStackPanel.Children.Add(TopNameLabel);
+            TopStackPanel.Children.Add(CategoryLabel);
+
+            Button UpdateButton = new Button();
+            UpdateButton.Content = "Update";
+
+            CategoriesStackPanel.Children.Add(TopStackPanel);
+            CategoriesStackPanel.Children.Add(UpdateButton);
+
+
+            bool DataBaseAvailable = false; // if database is available
+            bool SoftwareListTable = false; // if table is made
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            // Check if database has the required table
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SoftwareListTable = true;
+            }
+
+            if (DataBaseAvailable || SoftwareListTable)
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "SELECT * FROM SoftwareList";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                var result = command.ExecuteReader();
+
+                while (result.Read())
+                {
+                    string name = result.GetString(0);
+                    string category;
+                    try
+                    {
+                        category = result.GetString(2);
+                    }
+                    catch (System.InvalidCastException)
+                    {
+                        category = null;
+                    }
+                    StackPanel AddStackPanel = new StackPanel();
+                    AddStackPanel.Orientation = Orientation.Horizontal;
+
+                    TextBlock NameLabel = new TextBlock();
+                    TextBox CategoryTextBox = new TextBox();
+
+                    NameLabel.Text = name;
+                    CategoryTextBox.Text = category;
+
+                    NameLabel.Width = 100;
+                    CategoryTextBox.Width = 70;
+                    //CategoryTextBox.Height = 20;
+
+                    NameLabel.TextWrapping = TextWrapping.Wrap;
+
+                    CategoryTextBox.TextChanged += (s, e) => {
+                        try
+                        {
+                            CategoriesTempSave.Add(name, CategoryTextBox.Text);
+                        } 
+                        catch (System.ArgumentException)
+                        {
+                            CategoriesTempSave.Remove(name);
+                            CategoriesTempSave.Add(name, CategoryTextBox.Text);
+                        }
+                    };
+
+                    AddStackPanel.Children.Add(NameLabel);
+                    AddStackPanel.Children.Add(CategoryTextBox);
+
+                    CategoriesStackPanel.Children.Add(AddStackPanel);
+                }
+
+                UpdateButton.Click += (ss, ee) =>
+                {
+                    foreach (string s in CategoriesTempSave.Keys)
+                    {
+                        UpdateCategoriesInDataBase(s, CategoriesTempSave[s]);
+                    }
+                };
+
+                DBConnection.Close();
+            }
+        }
     }
 }
