@@ -22,13 +22,15 @@ using System.Threading;
 using Hardcodet;
 using WPFCustomMessageBox;
 using System.Data.SQLite;
+using LiveCharts;
+using LiveCharts.Wpf;
 
 
 
 
 // Known Issues ::
 // arranging events according to date in loading
-// make the timer adding good as direct feeding is good but it does not consider multiple use case scenario /// changes done test them
+
 
 
 namespace OClock
@@ -57,6 +59,7 @@ namespace OClock
 
         // Hardcodet.Wpf.TaskbarNotification.TaskbarIcon taskbarIcon = new Hardcodet.Wpf.TaskbarNotification.TaskbarIcon();
 
+
         public MainWindow()
         {
             /// <summary>
@@ -83,6 +86,13 @@ namespace OClock
             LoadToDoList();
             LoadEvents();
             LoadCategorySection();
+
+            if (PreAnalysisChecks())
+            {
+                DrawPCUsageGraph();
+                DrawIndividualSoftware();
+                DrawCategoricalAnalysis();
+            }
         }
 
         private async void SaveTimeThreadLooping()
@@ -1131,7 +1141,7 @@ namespace OClock
             bool TableUp = false;
             bool DataBaseAvailable = false;
 
-            string date = DateTime.Today.Date.ToString();
+            string date = DateTime.Today.ToShortDateString();
 
             Dictionary<string, bool> RunningStatus = new Dictionary<string, bool>();
 
@@ -1264,7 +1274,7 @@ namespace OClock
         private void TotalTimeCollection()
         {
             bool tableup = false;
-            string date = DateTime.Today.Date.ToString();
+            string date = DateTime.Today.ToShortDateString();
 
             try
             {
@@ -1320,6 +1330,242 @@ namespace OClock
             }
         }
 
+
+        // Analysis (Graphs and cleanning of data) --------------------------------------------------------------
+
+        private bool PreAnalysisChecks()
+        {
+            // Database Checks
+            bool DataBaseAvailable = false;
+            bool DataCollectionTableAvailable = false;
+            bool PCUsageTableAvailable = false;
+
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+
+                string sql = "CREATE Table CollectedData (Date varchar, Name varchar, Category varchar, Time int)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (SQLiteException)
+            {
+                DataCollectionTableAvailable = true;
+            }
+
+
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+
+                string sql = "CREATE Table TotalPCTime (Date varchar, Time int)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (SQLiteException)
+            {
+                PCUsageTableAvailable = true;
+            }
+
+            if (DataBaseAvailable || DataCollectionTableAvailable || PCUsageTableAvailable)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private void DrawPCUsageGraph()
+        {
+            //bool Status = PreAnalysisChecks();
+
+            
+                List<string> X = new List<string>();
+                List<int> Y = new List<int>();
+
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+
+                string sql = "SELECT * FROM TotalPCTime";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                var result = command.ExecuteReader();
+
+                while (result.Read())
+                {
+                    string date = result.GetString(0);
+                    int time = result.GetInt32(1);
+
+                    X.Add(date);
+                    Y.Add(time);
+                    
+                }
+
+                DBConnection.Close();
+
+                var series1 = new LiveCharts.Wpf.LineSeries()
+                {
+                    Title = "PC Usage",
+                    Values = new LiveCharts.ChartValues<int>(Y),
+                };
+                PCUsageCartesianChart.AxisY.Add(
+                    new Axis
+                    {
+                        MinValue = 0
+                    }
+                );
+
+                PCUsageCartesianChart.Series.Add(series1);
+
+                PCUsageCartesianChart.Zoom = ZoomingOptions.Xy;
+                
+
+         
+        }
+
+        private void DrawIndividualSoftware()
+        {
+           // PreAnalysisChecks();
+
+            List<string> Name = new List<string>();
+            
+
+            SoftwareUsageCartesianChart.AxisY.Add(
+                    new Axis
+                    {
+                        MinValue = 0
+                    }
+                );
+
+            SoftwareUsageCartesianChart.Zoom = ZoomingOptions.Xy;
+            
+
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+            DBConnection.Open();
+
+            string sql = "SELECT * FROM CollectedData";
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            var result = command.ExecuteReader();
+
+            while (result.Read())
+            {
+                List<int> Y = new List<int>();
+
+                string name = result.GetString(1);
+                int time = result.GetInt32(3);
+
+                Name.Add(name);
+                Y.Add(time);
+
+                var series1 = new LiveCharts.Wpf.LineSeries()
+                {
+                    Title = name,
+                    Values = new LiveCharts.ChartValues<int>(Y)
+                };
+
+                SoftwareUsageCartesianChart.Series.Add(series1);
+
+            }
+
+            DBConnection.Close();
+        }
+
+        private void DrawCategoricalAnalysis()
+        {
+            //PreAnalysisChecks();
+            List<string> category = new List<string>();
+            List<int> catwisetime = new List<int>();
+
+            CategoricalChart.AxisY.Add(
+                    new Axis
+                    {
+                        MinValue = 0
+                    }
+                );
+
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+            DBConnection.Open();
+
+            string sql = "SELECT * FROM CollectedData";
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            var result = command.ExecuteReader();
+
+            while (result.Read())
+            {
+                string cat = string.Empty;
+                try
+                {
+                    cat = result.GetString(2);
+                }
+                catch (System.InvalidCastException)
+                {
+                    continue;
+                }
+
+                if (!category.Contains(cat))
+                {
+                    category.Add(cat);
+                }
+            }
+
+            foreach(string s in category)
+            {
+                string sql1 = string.Format("SELECT * FROM CollectedData WHERE Category = '{0}'", s);
+                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                var result1 = command1.ExecuteReader();
+                int totalcattime = 0;
+
+                while (result.Read())
+                {
+                    int cattime = result.GetInt32(3);
+                    totalcattime += cattime;
+                }
+
+                catwisetime.Add(totalcattime);
+            }
+
+
+            for (int i = 0; i < category.Count; i++)
+            {
+                List<int> Y = new List<int>();
+                
+
+                Y.Add(catwisetime[i]);
+
+                var series1 = new LiveCharts.Wpf.LineSeries
+                {
+                    Title = category[i],
+                    Values = new LiveCharts.ChartValues<int>(Y)
+                };
+
+                CategoricalChart.Series.Add(series1);
+
+            }
+
+            DBConnection.Close();
+
+        }
 
         // Controls------------------------------------------------------------------
 
@@ -1606,8 +1852,8 @@ namespace OClock
             TopNameLabel.Width = 100;
             CategoryLabel.Width = 70;
 
-            TopNameLabel.FontWeight = FontWeights.Bold;
-            CategoryLabel.FontWeight = FontWeights.Bold;
+            TopNameLabel.FontWeight = System.Windows.FontWeights.Bold;
+            CategoryLabel.FontWeight = System.Windows.FontWeights.Bold;
 
             TopStackPanel.Children.Add(TopNameLabel);
             TopStackPanel.Children.Add(CategoryLabel);
