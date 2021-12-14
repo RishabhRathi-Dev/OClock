@@ -896,7 +896,8 @@ namespace OClock
         {
             bool DataBaseAvailable = false; // if database is available
             bool SoftwareListTable = false; // if table is made
-
+            bool TableUp = false;
+            string date = DateTime.Today.ToShortDateString();
             // Check if database is available
             try
             {
@@ -928,11 +929,36 @@ namespace OClock
                 SoftwareListTable = true;
             }
 
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+
+                string sql = "CREATE Table CollectedData (Date varchar, Name varchar, Category varchar, Time int)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+            catch (SQLiteException)
+            {
+                TableUp = true;
+            }
+
             if (DataBaseAvailable || SoftwareListTable)
             {
                 SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
                 DBConnection.Open();
                 string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", s, 0);
+                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                command1.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            if (DataBaseAvailable || TableUp)
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql1 = string.Format("INSERT INTO CollectedData (Date,Name, Time) values ('{2}', '{0}', {1})", s, 0, date);
                 SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
                 command1.ExecuteNonQuery();
                 DBConnection.Close();
@@ -1006,7 +1032,7 @@ namespace OClock
             {
                 SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
                 Connection.Open();
-                string sql1 = string.Format("UPDATE CollectedDAta SET Category = '{1}' WHERE Name = '{0}'", SN, C);
+                string sql1 = string.Format("UPDATE CollectedData SET Category = '{1}' WHERE Name = '{0}'", SN, C);
                 SQLiteCommand command1 = new SQLiteCommand(sql1, Connection);
                 command1.ExecuteNonQuery();
                 Connection.Close();
@@ -1536,9 +1562,9 @@ namespace OClock
                 var result1 = command1.ExecuteReader();
                 int totalcattime = 0;
 
-                while (result.Read())
+                while (result1.Read())
                 {
-                    int cattime = result.GetInt32(3);
+                    int cattime = result1.GetInt32(3);
                     totalcattime += cattime;
                 }
 
