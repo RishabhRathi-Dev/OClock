@@ -25,9 +25,10 @@ using System.Data.SQLite;
 
 
 
+
 // Known Issues ::
 // arranging events according to date in loading
-// either make the categories temp save private inside the function but yea you see how you wanna do it
+// make the timer adding good as direct feeding is good but it does not consider multiple use case scenario /// changes done test them
 
 
 namespace OClock
@@ -46,6 +47,8 @@ namespace OClock
         Stopwatch SecondMonitoredProcessWatch = new Stopwatch();
         Stopwatch ThirdMonitoredProcessWatch = new Stopwatch();
         Stopwatch BackGroundStopwatch = new Stopwatch();
+        Stopwatch DataCollectionStopwatch = new Stopwatch();
+        Stopwatch TotalTimeStopwatch = new Stopwatch();
 
         // Threads (Load threads may not work as they will be interecting with UI thread and that has caused problems before)
         Thread SaveTimeThread;
@@ -63,6 +66,10 @@ namespace OClock
             InitializeComponent(); // initializing componenets of software
             SoftwareList(); // for adding downloaded software in the DownloadedSoftwareList
 
+            TotalTimeStopwatch.Start();
+            BackGroundStopwatch.Start();
+            DataCollectionStopwatch.Start();
+
             CheckInDataBaseForSavedSoftwareName(); // for entrying data from DownloadedSoftwareList to combobox for user to select software to monitor while loading saved software names from database
 
             //ListPrint(DownloadedSoftwareList); //for debugging purpose
@@ -71,6 +78,7 @@ namespace OClock
             CheckProcess();
 
             SaveTimeThreadLooping();
+            DataCollectionThreadLooping();
 
             LoadToDoList();
             LoadEvents();
@@ -79,7 +87,7 @@ namespace OClock
 
         private async void SaveTimeThreadLooping()
         {
-            BackGroundStopwatch.Restart();
+            
             await Task.Delay(5 * 60 * 1000); // every 5 minutes 
 
             SaveTimeThread = new Thread(SaveTime);
@@ -92,6 +100,12 @@ namespace OClock
         {
             SaveTimeThread = new Thread(SaveTime);
             SaveTimeThread.Start();
+
+            Thread DataCollectionThread = new Thread(DataCollection);
+            DataCollectionThread.Start();
+
+            Thread TotalTimeCollectionThread = new Thread(TotalTimeCollection);
+            TotalTimeCollectionThread.Start();
         }
 
         private void SaveToDoListThreadRun()
@@ -104,6 +118,17 @@ namespace OClock
         {
             SaveEventsThread = new Thread(SaveEvents);
             SaveEventsThread.Start();
+        }
+
+        private async void DataCollectionThreadLooping()
+        {
+
+            await Task.Delay(5 * 60 * 1000);
+
+            Thread DataCollectionThread = new Thread(DataCollection);
+            DataCollectionThread.Start();
+
+            DataCollectionThreadLooping();
         }
 
         private void SoftwareList()
@@ -836,14 +861,15 @@ namespace OClock
                     }
 
                     if (isThere) { 
-                        string sql1 = string.Format("UPDATE SoftwareList SET Time = Time + {0} WHERE Name = '{1}'", BackGroundStopwatch.Elapsed.TotalMinutes, SoftwareName);
+                        string sql1 = string.Format("UPDATE SoftwareList SET Time = Time + {0} WHERE Name = '{1}'", BackGroundStopwatch.Elapsed.Minutes, SoftwareName);
                         SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
                         command1.ExecuteNonQuery();
+                        
                     }
 
                     else
                     {
-                        string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", SoftwareName, 0);
+                        string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", SoftwareName, BackGroundStopwatch.Elapsed.Minutes);
                         SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
                         command1.ExecuteNonQuery();
                     }
@@ -852,6 +878,7 @@ namespace OClock
                 }
 
                 DBConnection.Close();
+                BackGroundStopwatch.Restart();
             }
         }
 
@@ -906,6 +933,7 @@ namespace OClock
         {
             bool DataBaseAvailable = false; // if database is available
             bool SoftwareListTable = false; // if table is made
+            bool TableUp = false;
 
             // Check if database is available
             try
@@ -938,11 +966,37 @@ namespace OClock
                 SoftwareListTable = true;
             }
 
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+
+                string sql = "CREATE Table CollectedData (Date varchar, Name varchar, Category varchar, Time int)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+            catch (SQLiteException)
+            {
+                TableUp = true;
+            }
+
+
             if (DataBaseAvailable || SoftwareListTable)
             {
                 SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
                 Connection.Open();
                 string sql1 = string.Format("UPDATE SoftwareList SET Category = '{1}' WHERE Name = '{0}'", SN, C);
+                SQLiteCommand command1 = new SQLiteCommand(sql1, Connection);
+                command1.ExecuteNonQuery();
+                Connection.Close();
+            }
+
+            if (TableUp || DataBaseAvailable)
+            {
+                SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                Connection.Open();
+                string sql1 = string.Format("UPDATE CollectedDAta SET Category = '{1}' WHERE Name = '{0}'", SN, C);
                 SQLiteCommand command1 = new SQLiteCommand(sql1, Connection);
                 command1.ExecuteNonQuery();
                 Connection.Close();
@@ -1071,6 +1125,201 @@ namespace OClock
 
         }
 
+        
+        private void DataCollection()
+        {
+            bool TableUp = false;
+            bool DataBaseAvailable = false;
+
+            string date = DateTime.Today.Date.ToString();
+
+            Dictionary<string, bool> RunningStatus = new Dictionary<string, bool>();
+
+            List<dynamic> ForThisThread = DownloadedSoftwareList;
+
+            foreach (string SM in ForThisThread)
+            {
+
+                string ToBeChecked = SM.ToUpper();
+                string databaseString = SM.Replace("'", "\""); // to handle "'"
+
+                foreach (Process p in Process.GetProcesses())
+                {
+                    string MainWinTitle = p.MainWindowTitle.ToString();
+
+                    if (MainWinTitle.Length > 0)
+                    {
+                        MainWinTitle = MainWinTitle.ToUpper();
+                        bool DoesIt = MainWinTitle.Contains(ToBeChecked);
+
+                        if (DoesIt)
+                        {
+                            // incase of two different instances of a single software running
+                            if (!RunningStatus.ContainsKey(databaseString))
+                            {
+                                RunningStatus.Add(databaseString, DoesIt);
+                            }
+
+                            continue;
+                        }
+
+
+                    }
+                }
+            }
+
+            // Check if database is available
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                DataBaseAvailable = true;
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
+
+            }
+
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+
+                string sql = "CREATE Table CollectedData (Date varchar, Name varchar, Category varchar, Time int)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+            catch (SQLiteException)
+            {
+                TableUp = true;
+            }
+
+            if (TableUp || DataBaseAvailable)
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+
+                foreach (string SoftwareName in RunningStatus.Keys)
+                {
+
+                    bool isThere = false; // bool to know if the software name is in the database
+
+                    // string SoftwareName = SM.Replace("'", "\""); // to handle "'"   // Handled in RunningStatus itself
+
+                    try
+                    {
+                        string sql = string.Format("SELECT Name FROM CollectedData WHERE Name = '{0}' AND Date = '{1}'", SoftwareName, date);
+
+                        SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                        var Result = command.ExecuteReader();
+
+                        int InstanceCount = 0; // this checks how many time given software name has occured in our database if it is 1 or more then update it i.e set isThere to true if not then add it
+
+                        while (Result.Read())
+                        {
+                            InstanceCount++;
+                        }
+
+                        if (InstanceCount > 0)
+                        {
+                            isThere = true;
+                        }
+
+                        //Console.WriteLine(Result); // For Debugging Purpose
+                    }
+                    catch (SQLiteException)
+                    {
+                        isThere = false;
+                    }
+
+                    if (isThere)
+                    {
+                        string sql1 = string.Format("UPDATE CollectedData SET Time = Time + {0} WHERE Name = '{1}' AND Date = '{2}'", DataCollectionStopwatch.Elapsed.Minutes, SoftwareName, date);
+                        //Console.WriteLine(DataCollectionStopwatch.Elapsed.Minutes);
+                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                        command1.ExecuteNonQuery();
+                        
+                    }
+
+                    else
+                    {
+                        string sql1 = string.Format("INSERT INTO CollectedData (Date,Name, Time) values ('{2}', '{0}', {1})", SoftwareName, DataCollectionStopwatch.Elapsed.Minutes, date);
+                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                        command1.ExecuteNonQuery();
+                    }
+
+                    // Console.WriteLine((isThere, DataBaseAvailable, SoftwareListTable)); // For Debugging Purpose
+                }
+
+                DBConnection.Close();
+                DataCollectionStopwatch.Restart();
+            }
+
+        }
+
+        private void TotalTimeCollection()
+        {
+            bool tableup = false;
+            string date = DateTime.Today.Date.ToString();
+
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+
+                string sql = "CREATE Table TotalPCTime (Date varchar, Time int)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+
+                tableup = true;
+            }
+            catch (SQLiteException)
+            {
+                tableup = true;
+            }
+
+            //Console.WriteLine(tableup);
+
+            if (tableup)
+            {
+
+                bool isThere = false;
+
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+
+                string presql = string.Format("SELECT * FROM TotalPCTime WHERE Date = '{0}'", date);
+                SQLiteCommand precommand = new SQLiteCommand(presql, DBConnection);
+                var result = precommand.ExecuteReader();
+
+                while (result.Read())
+                {
+                    isThere = true;
+                }
+
+                if (isThere)
+                {
+                    string sql1 = string.Format("UPDATE TotalPCTime SET Time = Time + {1} WHERE Date = '{0}'", date, TotalTimeStopwatch.Elapsed.Minutes);
+                    SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                    command1.ExecuteNonQuery();
+                }
+
+                else
+                {
+                    string sql = string.Format("INSERT INTO TotalPCTime (Date, Time) values ('{0}', {1})", date, TotalTimeStopwatch.Elapsed.Minutes);
+                    SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                    command.ExecuteNonQuery();
+                }
+
+                DBConnection.Close();
+            }
+        }
+
 
         // Controls------------------------------------------------------------------
 
@@ -1157,6 +1406,7 @@ namespace OClock
             EnterAddedSoftwareNameInDataBase(AddProgramTextBox.Text);
             AddProgramTextBox.Clear();
             EnterDataInCombobox(DownloadedSoftwareList);
+            LoadCategorySection(); // update category section
         }
 
         // More and more control stuff... huh can't categorize any more
