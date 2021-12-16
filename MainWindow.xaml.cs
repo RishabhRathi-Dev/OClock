@@ -27,12 +27,6 @@ using LiveCharts.Wpf;
 
 
 
-
-// Known Issues ::
-// arranging events according to date in loading
-
-
-
 namespace OClock
 {
     public partial class MainWindow : Window
@@ -43,6 +37,7 @@ namespace OClock
         List<string> ToDoList = new List<string>();
         Dictionary<int, (string, string)> EventsList = new Dictionary<int, (string, string)>(); // 
         Dictionary<string, string> CategoriesTempSave = new Dictionary<string, string>();
+        List<string> DateOfOperation = new List<string>();
 
         // Stopwatches for the timers
         Stopwatch FirstMonitoredProcessWatch = new Stopwatch();
@@ -73,37 +68,50 @@ namespace OClock
             BackGroundStopwatch.Start();
             DataCollectionStopwatch.Start();
 
-            CheckInDataBaseForSavedSoftwareName(); // for entrying data from DownloadedSoftwareList to combobox for user to select software to monitor while loading saved software names from database
+            if (DatabaseChecks())
+            { 
+                CheckInDataBaseForSavedSoftwareName(); // for entrying data from DownloadedSoftwareList to combobox for user to select software to monitor while loading saved software names from database
+                CreateDateOfOperations();
 
-            //ListPrint(DownloadedSoftwareList); //for debugging purpose
-            //ListPrint(MonitoredProcessList); //for debugging purpose
+
+                //ImmediateSaveTime(); // to check everything
+
+                //ListPrint(DownloadedSoftwareList); //for debugging purpose
+                //ListPrint(MonitoredProcessList); //for debugging purpose
             
-            CheckProcess();
+                CheckProcess();
 
-            SaveTimeThreadLooping();
-            DataCollectionThreadLooping();
+                BackgroundProcessLooping();
+                //DataCollectionThreadLooping();
 
-            LoadToDoList();
-            LoadEvents();
-            LoadCategorySection();
+                LoadToDoList();
+                LoadEvents();
+                LoadCategorySection();
 
-            if (PreAnalysisChecks())
-            {
+                //GraphLabeling();
+            
                 DrawPCUsageGraph();
                 DrawIndividualSoftware();
                 DrawCategoricalAnalysis();
             }
         }
 
-        private async void SaveTimeThreadLooping()
+        private async void BackgroundProcessLooping()
         {
             
-            await Task.Delay(5 * 60 * 1000); // every 5 minutes 
+            await Task.Delay(1 * 60 * 1000); // 1 minutes 
 
             SaveTimeThread = new Thread(SaveTime);
             SaveTimeThread.Start();
-            
-            SaveTimeThreadLooping();
+
+            await Task.Delay(1 * 60 * 1000); // 1 minutes 
+
+            Thread DataCollectionThread = new Thread(DataCollection);
+            DataCollectionThread.Start();
+
+            TotalTimeCollection();
+
+            BackgroundProcessLooping();
         }
 
         private void ImmediateSaveTime()
@@ -128,17 +136,6 @@ namespace OClock
         {
             SaveEventsThread = new Thread(SaveEvents);
             SaveEventsThread.Start();
-        }
-
-        private async void DataCollectionThreadLooping()
-        {
-
-            await Task.Delay(5 * 60 * 1000);
-
-            Thread DataCollectionThread = new Thread(DataCollection);
-            DataCollectionThread.Start();
-
-            DataCollectionThreadLooping();
         }
 
         private void SoftwareList()
@@ -202,60 +199,59 @@ namespace OClock
 
         private void CheckInDataBaseForSavedSoftwareName()
         {
-            bool DataBaseAvailable = false;
-            bool SoftwareListTable = false;
+           
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            DBConnection.Open();
+            string sql = "SELECT * FROM SoftwareList";
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            var result = command.ExecuteReader();
 
-            try
+            while (result.Read())
             {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
+                string name = result.GetString(0);
 
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            // Check if database has the required table
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SoftwareListTable = true;
-            }
-
-            if (DataBaseAvailable || SoftwareListTable)
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "SELECT * FROM SoftwareList";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                var result = command.ExecuteReader();
-
-                while (result.Read())
+                if (!DownloadedSoftwareList.Contains(name))
                 {
-                    string name = result.GetString(0);
-
-                    if (!DownloadedSoftwareList.Contains(name))
-                    {
-                        DownloadedSoftwareList.Add(name);
-                    }
+                    DownloadedSoftwareList.Add(name);
                 }
-                DBConnection.Close();
-
-                EnterDataInCombobox(DownloadedSoftwareList);
             }
+            DBConnection.Close();
+
+            EnterDataInCombobox(DownloadedSoftwareList);
+            
+        }
+
+        private void CreateDateOfOperations()
+        {
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            DBConnection.Open();
+            string sql = "SELECT * FROM CollectedData";
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            var result = command.ExecuteReader();
+
+            string startDatestring = "";
+
+            while (result.Read())
+            {
+                startDatestring = result.GetString(0);
+                break;
+            }
+
+            DateOfOperation.Add(startDatestring);
+
+            if (startDatestring.Length > 0)
+            {
+                DateTime start = DateTime.Parse(startDatestring);
+                DateTime today = DateTime.Now;
+                int diff = (today - start).Days;
+
+                for (int i = 0; i < diff; i++)
+                {
+                    string temp = start.AddDays(i+1).Date.ToShortDateString();
+                    DateOfOperation.Add(temp);
+                }
+            }
+
         }
 
         private void ListPrint(List<dynamic> l)
@@ -583,788 +579,17 @@ namespace OClock
         // No need to create a path to save things in doc as if you make executable of this program when it is run database will be created in same directory as executable so it is good for our 
         // needs
 
+        // Checks
 
-        // Loads
-
-        private void LoadToDoList()
-        {
-            bool DataBaseAvailable = false;
-            bool ToDoListTable = false;
-
-            ToDoListStack.Children.Clear(); // Clearing residual since we are loading from database
-
-            // Check if database is available
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            // Check if database has the required table
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "CREATE TABLE ToDoList (Task varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                ToDoListTable = true;
-            }
-
-            if (DataBaseAvailable || ToDoListTable)
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-
-                string sql = "SELECT Task FROM ToDoList";
-
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                var Result = command.ExecuteReader();
-
-                while (Result.Read())
-                {
-                    string ans = Result.GetString(0);
-                    MakeTheLoadedLabel(ans);
-                }
-            }
-        }
-
-        private void MakeTheLoadedLabel(string s)
-        {
-            StackPanel LoadStackPanel = new StackPanel();
-            CheckBox ToDoCheckBox = new CheckBox();
-            ToDoCheckBox.Content = s;
-
-            ToDoCheckBox.Checked += (sssss, eeeee) => {
-                ToDoListStack.Children.Remove(LoadStackPanel);
-                UnloadFromToDoList(ToDoCheckBox.Content);
-                ToDoList.Remove(ToDoCheckBox.Content.ToString());
-            };
-
-            LoadStackPanel.Children.Add(ToDoCheckBox);
-            ToDoListStack.Children.Add(LoadStackPanel);
-        }
-
-        private void LoadEvents()
-        {
-            bool DataBaseAvailable = false;
-            bool EventsListTable = false;
-
-            List<string> deleteList = new List<string>(); 
-
-            EventsStackPanel.Children.Clear(); // Clearing residual since we are loading from database
-
-            // Check if database is available
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            // Check if database has the required table
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "CREATE TABLE EventsList (Date varchar, Event varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                EventsListTable = true;
-            }
-
-            if (DataBaseAvailable || EventsListTable)
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-
-                string sql = "SELECT * FROM EventsList";
-
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                var Result = command.ExecuteReader();
-
-                while (Result.Read())
-                {
-                    string date = Result.GetString(0);
-                    string eventdetail = Result.GetString(1);
-
-                    DateTime datetime = DateTime.Parse(date); // to load relevant events
-                    
-                    if(datetime >= DateTime.Today)
-                    {
-                        MakeEventForLoad(date, eventdetail);
-                    }
-                    else
-                    {
-                        deleteList.Add(date);
-                    }
-
-                }
-
-                DBConnection.Close();
-            }
-
-            foreach(string s in deleteList)
-            {
-                // separte cause database is getting locked if i am doing it in the else itself
-                string databaseString = s.Replace("'", "\"");
-                SQLiteConnection DBConnection1 = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-                DBConnection1.Open();
-                string sql1 = string.Format("DELETE FROM EventsList WHERE Date = ('{0}')", databaseString);
-                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection1);
-                command1.ExecuteNonQuery();
-                DBConnection1.Close();
-            }
-        }
-        
-        private void MakeEventForLoad(string date, string eventdetail)
-        {
-            StackPanel LoadStackPanel = new StackPanel();
-            Label Date = new Label();
-            Label EventDetail = new Label();
-
-            Date.Content = date;
-            EventDetail.Content = eventdetail;
-
-            LoadStackPanel.Children.Add(Date);
-            LoadStackPanel.Children.Add(EventDetail);
-
-            EventsStackPanel.Children.Add(LoadStackPanel);
-        }
-
-        // Saves
-        private void SaveTime()
-        {
-            bool DataBaseAvailable = false; // if database is available
-            bool SoftwareListTable = false; // if table is made
-
-            // Most of this function is with try since we don't know whether the required thing is available in the database and the possible solution is in the catch
-
-            // Making the list of process still in working
-            Dictionary<string, bool> RunningStatus = new Dictionary<string, bool>();
-
-            List<dynamic> ForThisThread = DownloadedSoftwareList;
-
-            foreach (string SM in ForThisThread)
-            {
-
-                string ToBeChecked = SM.ToUpper();
-                string databaseString = SM.Replace("'", "\""); // to handle "'"
-
-                foreach (Process p in Process.GetProcesses())
-                {
-                    string MainWinTitle = p.MainWindowTitle.ToString();
-
-                    if (MainWinTitle.Length > 0)
-                    {
-                        MainWinTitle = MainWinTitle.ToUpper();
-                        bool DoesIt = MainWinTitle.Contains(ToBeChecked);
-
-                        if (DoesIt)
-                        {
-                            // incase of two different instances of a single software running
-                            if (!RunningStatus.ContainsKey(databaseString))
-                            {
-                                RunningStatus.Add(databaseString, DoesIt); 
-                            }
-
-                            continue;
-                        }
-
-                        
-                    }
-                }
-            }
-
-            // Check if database is available
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-                
-            }
-            
-            // Check if database has the required table
-            try 
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SoftwareListTable = true;
-            }
-
-            //Console.WriteLine((SoftwareListTable, DataBaseAvailable)); // For debugging purpose
-
-            if (DataBaseAvailable || SoftwareListTable) {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-
-                foreach (string SoftwareName in RunningStatus.Keys){
-
-                    bool isThere = false; // bool to know if the software name is in the database
-
-                    // string SoftwareName = SM.Replace("'", "\""); // to handle "'"   // Handled in RunningStatus itself
-
-                    try
-                    {
-                        string sql = string.Format("SELECT Name FROM SoftwareList WHERE Name = '{0}'", SoftwareName);
-
-                        SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                        var Result = command.ExecuteReader();
-
-                        int InstanceCount = 0; // this checks how many time given software name has occured in our database if it is 1 or more then update it i.e set isThere to true if not then add it
-
-                        while (Result.Read())
-                        {
-                            InstanceCount++;
-                        }
-                        
-                        if (InstanceCount > 0)
-                        {
-                            isThere = true;
-                        }
-
-                        //Console.WriteLine(Result); // For Debugging Purpose
-                    }
-                    catch (SQLiteException)
-                    {
-                        isThere = false;
-                    }
-
-                    if (isThere) { 
-                        string sql1 = string.Format("UPDATE SoftwareList SET Time = Time + {0} WHERE Name = '{1}'", BackGroundStopwatch.Elapsed.Minutes, SoftwareName);
-                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
-                        command1.ExecuteNonQuery();
-                        
-                    }
-
-                    else
-                    {
-                        string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", SoftwareName, BackGroundStopwatch.Elapsed.Minutes);
-                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
-                        command1.ExecuteNonQuery();
-                    }
-
-                    // Console.WriteLine((isThere, DataBaseAvailable, SoftwareListTable)); // For Debugging Purpose
-                }
-
-                DBConnection.Close();
-                BackGroundStopwatch.Restart();
-            }
-        }
-
-        private void EnterAddedSoftwareNameInDataBase(string s)
-        {
-            bool DataBaseAvailable = false; // if database is available
-            bool SoftwareListTable = false; // if table is made
-            bool TableUp = false;
-            string date = DateTime.Today.ToShortDateString();
-            // Check if database is available
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            // Check if database has the required table
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SoftwareListTable = true;
-            }
-
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-                DBConnection.Open();
-
-                string sql = "CREATE Table CollectedData (Date varchar, Name varchar, Category varchar, Time int)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-            catch (SQLiteException)
-            {
-                TableUp = true;
-            }
-
-            if (DataBaseAvailable || SoftwareListTable)
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", s, 0);
-                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
-                command1.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            if (DataBaseAvailable || TableUp)
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql1 = string.Format("INSERT INTO CollectedData (Date,Name, Time) values ('{2}', '{0}', {1})", s, 0, date);
-                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
-                command1.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-        }
-
-        private void UpdateCategoriesInDataBase(string SN, string C)
-        {
-            bool DataBaseAvailable = false; // if database is available
-            bool SoftwareListTable = false; // if table is made
-            bool TableUp = false;
-
-            // Check if database is available
-            try
-            {
-                SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                Connection.Open();
-                DataBaseAvailable = true;
-                Connection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            // Check if database has the required table
-            try
-            {
-                SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                Connection.Open();
-                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, Connection);
-                command.ExecuteNonQuery();
-                Connection.Close();
-            }
-
-            catch (Exception)
-            {
-                SoftwareListTable = true;
-            }
-
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-                DBConnection.Open();
-
-                string sql = "CREATE Table CollectedData (Date varchar, Name varchar, Category varchar, Time int)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-            catch (SQLiteException)
-            {
-                TableUp = true;
-            }
-
-
-            if (DataBaseAvailable || SoftwareListTable)
-            {
-                SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                Connection.Open();
-                string sql1 = string.Format("UPDATE SoftwareList SET Category = '{1}' WHERE Name = '{0}'", SN, C);
-                SQLiteCommand command1 = new SQLiteCommand(sql1, Connection);
-                command1.ExecuteNonQuery();
-                Connection.Close();
-            }
-
-            if (TableUp || DataBaseAvailable)
-            {
-                SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                Connection.Open();
-                string sql1 = string.Format("UPDATE CollectedData SET Category = '{1}' WHERE Name = '{0}'", SN, C);
-                SQLiteCommand command1 = new SQLiteCommand(sql1, Connection);
-                command1.ExecuteNonQuery();
-                Connection.Close();
-            }
-        }
-
-        private void SaveToDoList()
-        {
-            bool DataBaseAvailable = false;
-            bool ToDoListTable = false;
-
-            // Check if database is available
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            // Check if database has the required table
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "CREATE TABLE ToDoList (Task varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                ToDoListTable = true;
-            }
-
-            if (DataBaseAvailable || ToDoListTable)
-            {
-                foreach(string SM in ToDoList)
-                {
-                    string databaseString = SM.Replace("'", "\""); // to handle "'"
-                    SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-                    DBConnection.Open();
-                    string sql = string.Format("INSERT INTO ToDoList (Task) values ('{0}')", databaseString);
-                    SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                    command.ExecuteNonQuery();
-                    DBConnection.Close();
-                }
-                
-            }
-        }
-
-        private void UnloadFromToDoList(dynamic content)
-        {
-            string converted = content.ToString();
-            string databaseString = converted.Replace("'", "\"");
-            SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-            DBConnection.Open();
-            string sql = string.Format("DELETE FROM ToDoList WHERE Task = ('{0}')", databaseString);
-            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-            command.ExecuteNonQuery();
-            DBConnection.Close();
-        }
-
-        private void SaveEvents()
-        {
-            bool DataBaseAvailable = false;
-            bool EventsListStatus = false;
-
-            // Check if database is available
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            // Check if database has the required table
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "CREATE TABLE EventsList (Date varchar, Event varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                EventsListStatus = true;
-            }
-
-            if (EventsListStatus || DataBaseAvailable)
-            {
-                for (int i = 0; i < EventsList.Values.Count; i++)
-                {
-                    string date, eventdetail;
-                    (date, eventdetail) = EventsList[i];
-
-                    string DBdate = date.Replace("'", "\"");
-                    string DBeventdetail = eventdetail.Replace("'", "\"");
-
-                    SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-                    DBConnection.Open();
-                    string sql = string.Format("INSERT INTO EventsList (Date, Event) values ('{0}', '{1}')", DBdate, DBeventdetail);
-                    SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                    command.ExecuteNonQuery();
-                    DBConnection.Close();
-
-                }
-            }
-
-        }
-
-        
-        private void DataCollection()
-        {
-            bool TableUp = false;
-            bool DataBaseAvailable = false;
-
-            string date = DateTime.Today.ToShortDateString();
-
-            Dictionary<string, bool> RunningStatus = new Dictionary<string, bool>();
-
-            List<dynamic> ForThisThread = DownloadedSoftwareList;
-
-            foreach (string SM in ForThisThread)
-            {
-
-                string ToBeChecked = SM.ToUpper();
-                string databaseString = SM.Replace("'", "\""); // to handle "'"
-
-                foreach (Process p in Process.GetProcesses())
-                {
-                    string MainWinTitle = p.MainWindowTitle.ToString();
-
-                    if (MainWinTitle.Length > 0)
-                    {
-                        MainWinTitle = MainWinTitle.ToUpper();
-                        bool DoesIt = MainWinTitle.Contains(ToBeChecked);
-
-                        if (DoesIt)
-                        {
-                            // incase of two different instances of a single software running
-                            if (!RunningStatus.ContainsKey(databaseString))
-                            {
-                                RunningStatus.Add(databaseString, DoesIt);
-                            }
-
-                            continue;
-                        }
-
-
-                    }
-                }
-            }
-
-            // Check if database is available
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-                DBConnection.Open();
-
-                string sql = "CREATE Table CollectedData (Date varchar, Name varchar, Category varchar, Time int)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-            catch (SQLiteException)
-            {
-                TableUp = true;
-            }
-
-            if (TableUp || DataBaseAvailable)
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-
-                foreach (string SoftwareName in RunningStatus.Keys)
-                {
-
-                    bool isThere = false; // bool to know if the software name is in the database
-
-                    // string SoftwareName = SM.Replace("'", "\""); // to handle "'"   // Handled in RunningStatus itself
-
-                    try
-                    {
-                        string sql = string.Format("SELECT Name FROM CollectedData WHERE Name = '{0}' AND Date = '{1}'", SoftwareName, date);
-
-                        SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                        var Result = command.ExecuteReader();
-
-                        int InstanceCount = 0; // this checks how many time given software name has occured in our database if it is 1 or more then update it i.e set isThere to true if not then add it
-
-                        while (Result.Read())
-                        {
-                            InstanceCount++;
-                        }
-
-                        if (InstanceCount > 0)
-                        {
-                            isThere = true;
-                        }
-
-                        //Console.WriteLine(Result); // For Debugging Purpose
-                    }
-                    catch (SQLiteException)
-                    {
-                        isThere = false;
-                    }
-
-                    if (isThere)
-                    {
-                        string sql1 = string.Format("UPDATE CollectedData SET Time = Time + {0} WHERE Name = '{1}' AND Date = '{2}'", DataCollectionStopwatch.Elapsed.Minutes, SoftwareName, date);
-                        //Console.WriteLine(DataCollectionStopwatch.Elapsed.Minutes);
-                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
-                        command1.ExecuteNonQuery();
-                        
-                    }
-
-                    else
-                    {
-                        string sql1 = string.Format("INSERT INTO CollectedData (Date,Name, Time) values ('{2}', '{0}', {1})", SoftwareName, DataCollectionStopwatch.Elapsed.Minutes, date);
-                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
-                        command1.ExecuteNonQuery();
-                    }
-
-                    // Console.WriteLine((isThere, DataBaseAvailable, SoftwareListTable)); // For Debugging Purpose
-                }
-
-                DBConnection.Close();
-                DataCollectionStopwatch.Restart();
-            }
-
-        }
-
-        private void TotalTimeCollection()
-        {
-            bool tableup = false;
-            string date = DateTime.Today.ToShortDateString();
-
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-                DBConnection.Open();
-
-                string sql = "CREATE Table TotalPCTime (Date varchar, Time int)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-
-                tableup = true;
-            }
-            catch (SQLiteException)
-            {
-                tableup = true;
-            }
-
-            //Console.WriteLine(tableup);
-
-            if (tableup)
-            {
-
-                bool isThere = false;
-
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
-                DBConnection.Open();
-
-                string presql = string.Format("SELECT * FROM TotalPCTime WHERE Date = '{0}'", date);
-                SQLiteCommand precommand = new SQLiteCommand(presql, DBConnection);
-                var result = precommand.ExecuteReader();
-
-                while (result.Read())
-                {
-                    isThere = true;
-                }
-
-                if (isThere)
-                {
-                    string sql1 = string.Format("UPDATE TotalPCTime SET Time = Time + {1} WHERE Date = '{0}'", date, TotalTimeStopwatch.Elapsed.Minutes);
-                    SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
-                    command1.ExecuteNonQuery();
-                }
-
-                else
-                {
-                    string sql = string.Format("INSERT INTO TotalPCTime (Date, Time) values ('{0}', {1})", date, TotalTimeStopwatch.Elapsed.Minutes);
-                    SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                    command.ExecuteNonQuery();
-                }
-
-                DBConnection.Close();
-            }
-        }
-
-
-        // Analysis (Graphs and cleanning of data) --------------------------------------------------------------
-
-        private bool PreAnalysisChecks()
+        private bool DatabaseChecks()
         {
             // Database Checks
             bool DataBaseAvailable = false;
             bool DataCollectionTableAvailable = false;
             bool PCUsageTableAvailable = false;
+            bool EventsListStatus = false;
+            bool ToDoListTable = false;
+            bool SoftwareListTable = false;
 
             try
             {
@@ -1378,6 +603,21 @@ namespace OClock
             {
                 SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
 
+            }
+
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                SoftwareListTable = true;
             }
 
             try
@@ -1413,7 +653,37 @@ namespace OClock
                 PCUsageTableAvailable = true;
             }
 
-            if (DataBaseAvailable || DataCollectionTableAvailable || PCUsageTableAvailable)
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE EventsList (Date varchar, Event varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                EventsListStatus = true;
+            }
+
+            try
+            {
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+                string sql = "CREATE TABLE ToDoList (Task varchar)";
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+
+            catch (Exception)
+            {
+                ToDoListTable = true;
+            }
+
+            if (DataBaseAvailable || SoftwareListTable || DataCollectionTableAvailable || PCUsageTableAvailable || ToDoListTable || EventsListStatus)
             {
                 return true;
             }
@@ -1423,66 +693,668 @@ namespace OClock
             }
         }
 
+
+        // Loads
+
+        private void LoadToDoList()
+        {
+           
+
+            ToDoListStack.Children.Clear(); // Clearing residual since we are loading from database
+
+            
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            DBConnection.Open();
+
+            string sql = "SELECT Task FROM ToDoList";
+
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            var Result = command.ExecuteReader();
+
+            while (Result.Read())
+            {
+                string ans = Result.GetString(0);
+                MakeTheLoadedLabel(ans);
+            }
+            
+        }
+
+        private void MakeTheLoadedLabel(string s)
+        {
+            StackPanel LoadStackPanel = new StackPanel();
+            CheckBox ToDoCheckBox = new CheckBox();
+            ToDoCheckBox.Content = s;
+
+            ToDoCheckBox.Checked += (sssss, eeeee) => {
+                ToDoListStack.Children.Remove(LoadStackPanel);
+                UnloadFromToDoList(ToDoCheckBox.Content);
+                ToDoList.Remove(ToDoCheckBox.Content.ToString());
+            };
+
+            LoadStackPanel.Children.Add(ToDoCheckBox);
+            ToDoListStack.Children.Add(LoadStackPanel);
+        }
+
+        private void LoadEvents()
+        {
+           
+
+            List<string> deleteList = new List<string>(); 
+
+            EventsStackPanel.Children.Clear(); // Clearing residual since we are loading from database
+
+            
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            DBConnection.Open();
+
+            string sql = "SELECT * FROM EventsList";
+
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            var Result = command.ExecuteReader();
+
+            while (Result.Read())
+            {
+                string date = Result.GetString(0);
+                string eventdetail = Result.GetString(1);
+
+                DateTime datetime = DateTime.Parse(date); // to load relevant events
+                    
+                if(datetime >= DateTime.Today)
+                {
+                    MakeEventForLoad(date, eventdetail);
+                }
+                else
+                {
+                    deleteList.Add(date);
+                }
+
+            }
+
+            DBConnection.Close();
+         
+
+            foreach(string s in deleteList)
+            {
+                // separte cause database is getting locked if i am doing it in the else itself
+                string databaseString = s.Replace("'", "\"");
+                SQLiteConnection DBConnection1 = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection1.Open();
+                string sql1 = string.Format("DELETE FROM EventsList WHERE Date = ('{0}')", databaseString);
+                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection1);
+                command1.ExecuteNonQuery();
+                DBConnection1.Close();
+            }
+        }
+        
+        private void MakeEventForLoad(string date, string eventdetail)
+        {
+            StackPanel LoadStackPanel = new StackPanel();
+            Label Date = new Label();
+            Label EventDetail = new Label();
+
+            Date.Content = date;
+            EventDetail.Content = eventdetail;
+
+            LoadStackPanel.Children.Add(Date);
+            LoadStackPanel.Children.Add(EventDetail);
+
+            EventsStackPanel.Children.Add(LoadStackPanel);
+        }
+
+        private void LoadCategorySection()
+        {
+
+            CategoriesStackPanel.Children.Clear();
+
+            StackPanel TopStackPanel = new StackPanel();
+            TopStackPanel.Orientation = Orientation.Horizontal;
+
+            Label TopNameLabel = new Label();
+            Label CategoryLabel = new Label();
+
+            TopNameLabel.Content = "Software Name";
+            CategoryLabel.Content = "Category";
+
+            TopNameLabel.Width = 100;
+            CategoryLabel.Width = 70;
+
+            TopNameLabel.FontWeight = System.Windows.FontWeights.Bold;
+            CategoryLabel.FontWeight = System.Windows.FontWeights.Bold;
+
+            TopStackPanel.Children.Add(TopNameLabel);
+            TopStackPanel.Children.Add(CategoryLabel);
+
+            Button UpdateButton = new Button();
+            UpdateButton.Content = "Update";
+
+            CategoriesStackPanel.Children.Add(TopStackPanel);
+            CategoriesStackPanel.Children.Add(UpdateButton);
+
+
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            DBConnection.Open();
+            string sql = "SELECT * FROM SoftwareList";
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            var result = command.ExecuteReader();
+
+            while (result.Read())
+            {
+                string name = result.GetString(0);
+                string category;
+                try
+                {
+                    category = result.GetString(2);
+                }
+                catch (System.InvalidCastException)
+                {
+                    category = null;
+                }
+                StackPanel AddStackPanel = new StackPanel();
+                AddStackPanel.Orientation = Orientation.Horizontal;
+
+                TextBlock NameLabel = new TextBlock();
+                TextBox CategoryTextBox = new TextBox();
+
+                NameLabel.Text = name;
+                CategoryTextBox.Text = category;
+
+                NameLabel.Width = 100;
+                CategoryTextBox.Width = 70;
+                //CategoryTextBox.Height = 20;
+
+                NameLabel.TextWrapping = TextWrapping.Wrap;
+
+                CategoryTextBox.TextChanged += (s, e) => {
+                    try
+                    {
+                        CategoriesTempSave.Add(name, CategoryTextBox.Text);
+                    }
+                    catch (System.ArgumentException)
+                    {
+                        CategoriesTempSave.Remove(name);
+                        CategoriesTempSave.Add(name, CategoryTextBox.Text);
+                    }
+                };
+
+                AddStackPanel.Children.Add(NameLabel);
+                AddStackPanel.Children.Add(CategoryTextBox);
+
+                CategoriesStackPanel.Children.Add(AddStackPanel);
+
+            }
+
+            UpdateButton.Click += (ss, ee) =>
+            {
+                foreach (string s in CategoriesTempSave.Keys)
+                {
+                    UpdateCategoriesInDataBase(s, CategoriesTempSave[s]);
+                    LoadCategorySection(); // reloads category section
+                }
+            };
+
+
+         
+
+            DBConnection.Close();
+
+        }
+
+        // Saves
+        private void SaveTime()
+        {
+            
+
+            // Making the list of process still in working
+            Dictionary<string, bool> RunningStatus = new Dictionary<string, bool>();
+
+            List<dynamic> ForThisThread = DownloadedSoftwareList;
+
+            try {
+                foreach (string SM in ForThisThread)
+                {
+
+                    string ToBeChecked = SM.ToUpper();
+                    string databaseString = SM.Replace("'", "\""); // to handle "'"
+
+                    foreach (Process p in Process.GetProcesses())
+                    {
+                        string MainWinTitle = p.MainWindowTitle.ToString();
+
+                        if (MainWinTitle.Length > 0)
+                        {
+                            MainWinTitle = MainWinTitle.ToUpper();
+                            bool DoesIt = MainWinTitle.Contains(ToBeChecked);
+
+                            if (DoesIt)
+                            {
+                                // incase of two different instances of a single software running
+                                if (!RunningStatus.ContainsKey(databaseString))
+                                {
+                                    RunningStatus.Add(databaseString, DoesIt);
+                                }
+
+                                continue;
+                            }
+
+
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+
+            }
+
+            
+            
+
+            foreach (string SoftwareName in RunningStatus.Keys){
+
+                bool isThere = false; // bool to know if the software name is in the database
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+                DBConnection.Open();
+
+                // string SoftwareName = SM.Replace("'", "\""); // to handle "'"   // Handled in RunningStatus itself
+
+                try
+                {
+                    
+                    string sql = string.Format("SELECT Name FROM SoftwareList WHERE Name = '{0}'", SoftwareName);
+
+                    SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                    var Result = command.ExecuteReader();
+
+                    int InstanceCount = 0; // this checks how many time given software name has occured in our database if it is 1 or more then update it i.e set isThere to true if not then add it
+
+                    while (Result.Read())
+                    {
+                        InstanceCount++;
+                    }
+                        
+                    if (InstanceCount > 0)
+                    {
+                        isThere = true;
+                    }
+                    
+
+                    //Console.WriteLine(Result); // For Debugging Purpose
+                }
+                catch (SQLiteException)
+                {
+                    isThere = false;
+                }
+
+                if (isThere) { 
+                    string sql1 = string.Format("UPDATE SoftwareList SET Time = Time + {0} WHERE Name = '{1}'", BackGroundStopwatch.Elapsed.Minutes, SoftwareName);
+                    SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                    command1.ExecuteNonQuery();
+                        
+                }
+
+                else
+                {
+                    string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", SoftwareName, BackGroundStopwatch.Elapsed.Minutes);
+                    SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                    command1.ExecuteNonQuery();
+                }
+
+                // Console.WriteLine((isThere, DataBaseAvailable, SoftwareListTable)); // For Debugging Purpose
+                
+
+                DBConnection.Close();
+                BackGroundStopwatch.Restart();
+            }
+        }
+
+        private void EnterAddedSoftwareNameInDataBase(string s)
+        {
+           
+            string date = DateTime.Today.ToShortDateString();
+            // Check if database is available
+            
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            DBConnection.Open();
+            string sql1 = string.Format("INSERT INTO SoftwareList (Name, Time) values ('{0}', {1})", s, 0);
+            SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+            command1.ExecuteNonQuery();
+            DBConnection.Close();
+          
+            DBConnection.Open();
+            string sql2 = string.Format("INSERT INTO CollectedData (Date,Name, Time) values ('{2}', '{0}', {1})", s, 0, date);
+            SQLiteCommand command2 = new SQLiteCommand(sql2, DBConnection);
+            command2.ExecuteNonQuery();
+            DBConnection.Close();
+            
+        }
+
+        private void UpdateCategoriesInDataBase(string SN, string C)
+        {
+           
+            SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            Connection.Open();
+            string sql1 = string.Format("UPDATE SoftwareList SET Category = '{1}' WHERE Name = '{0}'", SN, C);
+            SQLiteCommand command1 = new SQLiteCommand(sql1, Connection);
+            command1.ExecuteNonQuery();
+            Connection.Close();
+            
+
+            Connection.Open();
+            string presql2 = string.Format("SELECT * From CollectedData WHERE Name = '{0}'", SN);
+            SQLiteCommand precommand2 = new SQLiteCommand(presql2, Connection);
+            var res = precommand2.ExecuteReader();
+
+            try
+            {
+                while (res.Read())
+                {
+                    string sql2 = string.Format("UPDATE CollectedData SET Category = '{1}' WHERE Name = '{0}'", SN, C);
+                    SQLiteCommand command2 = new SQLiteCommand(sql2, Connection);
+                    command2.ExecuteNonQuery();
+                    Connection.Close();
+                }
+            }
+            catch (Exception) { }
+         
+        }
+
+        private void SaveToDoList()
+        {
+           
+            foreach(string SM in ToDoList)
+            {
+                string databaseString = SM.Replace("'", "\""); // to handle "'"
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+                string sql = string.Format("INSERT INTO ToDoList (Task) values ('{0}')", databaseString);
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+            }
+                
+            
+        }
+
+        private void UnloadFromToDoList(dynamic content)
+        {
+            string converted = content.ToString();
+            string databaseString = converted.Replace("'", "\"");
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+            DBConnection.Open();
+            string sql = string.Format("DELETE FROM ToDoList WHERE Task = ('{0}')", databaseString);
+            SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+            command.ExecuteNonQuery();
+            DBConnection.Close();
+        }
+
+        private void SaveEvents()
+        {
+           
+            for (int i = 0; i < EventsList.Values.Count; i++)
+            {
+                string date, eventdetail;
+                (date, eventdetail) = EventsList[i];
+
+                string DBdate = date.Replace("'", "\"");
+                string DBeventdetail = eventdetail.Replace("'", "\"");
+
+                SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+                DBConnection.Open();
+                string sql = string.Format("INSERT INTO EventsList (Date, Event) values ('{0}', '{1}')", DBdate, DBeventdetail);
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+                DBConnection.Close();
+
+            }
+            
+
+        }
+
+        
+        private void DataCollection()
+        {
+           
+
+            string date = DateTime.Today.ToShortDateString();
+
+            Dictionary<string, bool> RunningStatus = new Dictionary<string, bool>();
+
+            List<dynamic> ForThisThread = DownloadedSoftwareList;
+
+            try
+            {
+                foreach (string SM in ForThisThread)
+                {
+
+                    string ToBeChecked = SM.ToUpper();
+                    string databaseString = SM.Replace("'", "\""); // to handle "'"
+
+                    foreach (Process p in Process.GetProcesses())
+                    {
+                        string MainWinTitle = p.MainWindowTitle.ToString();
+
+                        if (MainWinTitle.Length > 0)
+                        {
+                            MainWinTitle = MainWinTitle.ToUpper();
+                            bool DoesIt = MainWinTitle.Contains(ToBeChecked);
+
+                            if (DoesIt)
+                            {
+                                // incase of two different instances of a single software running
+                                if (!RunningStatus.ContainsKey(databaseString))
+                                {
+                                    RunningStatus.Add(databaseString, DoesIt);
+                                }
+
+                                continue;
+                            }
+
+
+                        }
+                    }
+                }
+            }
+            catch(Exception) { }
+
+           
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            DBConnection.Open();
+
+            foreach (string SoftwareName in RunningStatus.Keys)
+            {
+
+                bool isThere = false; // bool to know if the software name is in the database
+
+                // string SoftwareName = SM.Replace("'", "\""); // to handle "'"   // Handled in RunningStatus itself
+
+                try
+                {
+                    string sql = string.Format("SELECT Name FROM CollectedData WHERE Name = '{0}' AND Date = '{1}'", SoftwareName, date);
+
+                    SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                    var Result = command.ExecuteReader();
+
+                    int InstanceCount = 0; // this checks how many time given software name has occured in our database if it is 1 or more then update it i.e set isThere to true if not then add it
+
+                    while (Result.Read())
+                    {
+                        InstanceCount++;
+                    }
+
+                    if (InstanceCount > 0)
+                    {
+                        isThere = true;
+                    }
+
+                    //Console.WriteLine(Result); // For Debugging Purpose
+                }
+                catch (SQLiteException)
+                {
+                    isThere = false;
+                }
+
+                if (isThere)
+                {
+                    string cat = GetCategory(SoftwareName);
+                    string sql1 = string.Format("UPDATE CollectedData SET Time = Time + {0} AND Category = '{3}' WHERE Name = '{1}' AND Date = '{2}'", DataCollectionStopwatch.Elapsed.Minutes, SoftwareName, date, cat);
+                    //Console.WriteLine(DataCollectionStopwatch.Elapsed.Minutes);
+                    SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                    command1.ExecuteNonQuery();
+                        
+                }
+
+                else
+                {
+                    string cat = GetCategory(SoftwareName);
+                    string sql1 = string.Format("INSERT INTO CollectedData (Date, Name, Time, Category) values ('{2}', '{0}', {1}, '{3}')", SoftwareName, DataCollectionStopwatch.Elapsed.Minutes, date, cat); /////////////////////////////////////////////////////////////////////////////////////////
+                    SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                    command1.ExecuteNonQuery();
+                }
+
+
+
+                // Console.WriteLine((isThere, DataBaseAvailable, SoftwareListTable)); // For Debugging Purpose
+            }
+
+            DBConnection.Close();
+            DataCollectionStopwatch.Restart();
+            
+
+        }
+
+        private string GetCategory(string s)
+        {
+            SQLiteConnection Connection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
+            Connection.Open();
+            string sql = string.Format("SELECT Category FROM SoftwareList WHERE Name = '{0}'", s);
+            SQLiteCommand command = new SQLiteCommand(sql, Connection);
+            var result = command.ExecuteReader();
+            string cat = "";
+            while (result.Read())
+            {
+                try
+                {
+                    cat = result.GetString(0);
+                }catch(System.InvalidCastException){ }
+            }
+            Connection.Close();
+
+            
+            //Console.WriteLine(cat);
+
+            return cat;
+        }
+
+        private void TotalTimeCollection()
+        {
+            
+            string date = DateTime.Today.ToShortDateString();
+
+           
+
+            bool isThere = false;
+
+            SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
+            DBConnection.Open();
+
+            string presql = string.Format("SELECT * FROM TotalPCTime WHERE Date = '{0}'", date);
+            SQLiteCommand precommand = new SQLiteCommand(presql, DBConnection);
+            var result = precommand.ExecuteReader();
+
+            while (result.Read())
+            {
+                isThere = true;
+            }
+
+            if (isThere)
+            {
+                string sql1 = string.Format("UPDATE TotalPCTime SET Time = Time + {1} WHERE Date = '{0}'", date, TotalTimeStopwatch.Elapsed.Minutes);
+                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                command1.ExecuteNonQuery();
+                TotalTimeStopwatch.Restart();
+            }
+
+            else
+            {
+                string sql = string.Format("INSERT INTO TotalPCTime (Date, Time) values ('{0}', {1})", date, TotalTimeStopwatch.Elapsed.Minutes);
+                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
+                command.ExecuteNonQuery();
+            }
+
+            DBConnection.Close();
+            
+        }
+
+
+        // Analysis (Graphs and cleanning of data) --------------------------------------------------------------
+
+       
         private void DrawPCUsageGraph()
         {
             //bool Status = PreAnalysisChecks();
+            PCUsageCartesianChart.Series.Clear();
+            PCUsageCartesianChart.Zoom = ZoomingOptions.Xy;
+
+
+            PCUsageCartesianChart.AxisX.Add(
+                new Axis { MinValue = 0, Title = "Date", Labels = DateOfOperation }
+                );
+            PCUsageCartesianChart.AxisY.Add(
+                new Axis { MinValue = 0, Title = "Time (in min)" }
+                );
 
             
-                List<string> X = new List<string>();
-                List<int> Y = new List<int>();
+            List<int> Y = new List<int>();
+
+            foreach (string date in DateOfOperation)
+            {
+
+                //Console.WriteLine(date);
 
                 SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
                 DBConnection.Open();
 
-                string sql = "SELECT * FROM TotalPCTime";
+                string sql = string.Format("SELECT * FROM TotalPCTime WHERE Date = '{0}'", date);
                 SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
                 var result = command.ExecuteReader();
 
+                int c = 0;
                 while (result.Read())
                 {
-                    string date = result.GetString(0);
-                    int time = result.GetInt32(1);
-
-                    X.Add(date);
-                    Y.Add(time);
-                    
+                    c += result.GetInt32(1);
                 }
 
+                Y.Add(c);
+
                 DBConnection.Close();
+            }
 
-                var series1 = new LiveCharts.Wpf.LineSeries()
-                {
-                    Title = "PC Usage",
-                    Values = new LiveCharts.ChartValues<int>(Y),
-                };
-                PCUsageCartesianChart.AxisY.Add(
-                    new Axis
-                    {
-                        MinValue = 0
-                    }
-                );
+            var series1 = new LiveCharts.Wpf.LineSeries()
+            {
+                Title = "PC Usage",
+                Values = new LiveCharts.ChartValues<int>(Y),
+            };
 
-                PCUsageCartesianChart.Series.Add(series1);
 
-                PCUsageCartesianChart.Zoom = ZoomingOptions.Xy;
-                
+            PCUsageCartesianChart.Series.Add(series1);
+            
 
-         
+            
         }
 
         private void DrawIndividualSoftware()
         {
-           // PreAnalysisChecks();
+            // PreAnalysisChecks();
+
+            SoftwareUsageCartesianChart.AxisX.Add(
+                new Axis { MinValue = 0, Title = "Date", Labels = DateOfOperation }
+                );
+            SoftwareUsageCartesianChart.AxisY.Add(
+                new Axis { MinValue = 0, Title = "Time (in min)" }
+                );
+            SoftwareUsageCartesianChart.Series.Clear();
 
             List<string> Name = new List<string>();
-            
-
-            SoftwareUsageCartesianChart.AxisY.Add(
-                    new Axis
-                    {
-                        MinValue = 0
-                    }
-                );
 
             SoftwareUsageCartesianChart.Zoom = ZoomingOptions.Xy;
             
@@ -1490,45 +1362,71 @@ namespace OClock
             SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
             DBConnection.Open();
 
-            string sql = "SELECT * FROM CollectedData";
+            string sql = "SELECT * FROM SoftwareList";
             SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
             var result = command.ExecuteReader();
 
             while (result.Read())
             {
+                string temp = result.GetString(0);
+                if (!Name.Contains(temp))
+                {
+                    Name.Add(temp);
+                }
+
+            }
+
+            foreach (string s in Name)
+            {
                 List<int> Y = new List<int>();
 
-                string name = result.GetString(1);
-                int time = result.GetInt32(3);
+                foreach (string date in DateOfOperation)
+                {
+                    string sql1 = string.Format("SELECT * FROM CollectedData WHERE Name = '{0}' AND Date = '{1}'", s, date);
+                    SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                    var result1 = command1.ExecuteReader();
 
-                Name.Add(name);
-                Y.Add(time);
+
+
+                    int c = 0;
+                    while (result1.Read())
+                    {
+                        c += result1.GetInt32(3);
+                    }
+                    Y.Add(c);
+                }
 
                 var series1 = new LiveCharts.Wpf.LineSeries()
                 {
-                    Title = name,
+                    Title = s,
                     Values = new LiveCharts.ChartValues<int>(Y)
                 };
 
                 SoftwareUsageCartesianChart.Series.Add(series1);
-
+                
             }
+            
+
 
             DBConnection.Close();
         }
 
         private void DrawCategoricalAnalysis()
         {
+            CategoricalChart.Series.Clear();
+
+            CategoricalChart.AxisX.Add(
+                new Axis { MinValue = 0, Title = "Date", Labels = DateOfOperation}
+                );
+            CategoricalChart.AxisY.Add(
+                new Axis { MinValue = 0, Title = "Time (in min)" }
+                );
+
+            //CategoricalChart.ScrollMode = ScrollMode.X;
+
             //PreAnalysisChecks();
             List<string> category = new List<string>();
-            List<int> catwisetime = new List<int>();
-
-            CategoricalChart.AxisY.Add(
-                    new Axis
-                    {
-                        MinValue = 0
-                    }
-                );
+            
 
             SQLiteConnection DBConnection = new SQLiteConnection("Data Source = OClockSaveFile.sqlite; Version = 3;");
             DBConnection.Open();
@@ -1555,38 +1453,39 @@ namespace OClock
                 }
             }
 
-            foreach(string s in category)
+            foreach (string s in category)
             {
-                string sql1 = string.Format("SELECT * FROM CollectedData WHERE Category = '{0}'", s);
-                SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
-                var result1 = command1.ExecuteReader();
-                int totalcattime = 0;
-
-                while (result1.Read())
+                if (s.Length > 0)
                 {
-                    int cattime = result1.GetInt32(3);
-                    totalcattime += cattime;
+
+                    List<int> Y = new List<int>();
+
+                    foreach (string date in DateOfOperation)
+                    {
+                        string sql1 = string.Format("SELECT * FROM CollectedData WHERE Category = '{0}' AND Date = '{1}'", s, date);
+                        SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
+                        var result1 = command1.ExecuteReader();
+                        int totalcattime = 0;
+
+                        while (result1.Read())
+                        {
+                            int cattime = result1.GetInt32(3);
+                            totalcattime += cattime;
+                        }
+
+                        Y.Add(totalcattime);
+
+                        //Console.WriteLine(totalcattime);
+                    }
+
+                    var series1 = new LiveCharts.Wpf.LineSeries
+                    {
+                        Title = s,
+                        Values = new LiveCharts.ChartValues<int>(Y)
+                    };
+
+                    CategoricalChart.Series.Add(series1);
                 }
-
-                catwisetime.Add(totalcattime);
-            }
-
-
-            for (int i = 0; i < category.Count; i++)
-            {
-                List<int> Y = new List<int>();
-                
-
-                Y.Add(catwisetime[i]);
-
-                var series1 = new LiveCharts.Wpf.LineSeries
-                {
-                    Title = category[i],
-                    Values = new LiveCharts.ChartValues<int>(Y)
-                };
-
-                CategoricalChart.Series.Add(series1);
-
             }
 
             DBConnection.Close();
@@ -1652,10 +1551,12 @@ namespace OClock
         private void ReturnButtonFromCategoriesClicked(object sender, RoutedEventArgs e)
         {
             CategoriesGrid.Visibility = Visibility.Hidden;
+            
         }
 
         private void CategoriesButtonClicked(object sender, RoutedEventArgs e)
         {
+            LoadCategorySection();
             SettingsGrid.Visibility = Visibility.Hidden;
             CategoriesGrid.Visibility = Visibility.Visible;
         }
@@ -1859,135 +1760,6 @@ namespace OClock
             AddStackPanel.Children.Add(ToDoText);
             AddStackPanel.Children.Add(ToDoTextAddButton);
             ToDoListStack.Children.Add(AddStackPanel);
-        }
-
-        private void LoadCategorySection()
-        {
-
-            CategoriesStackPanel.Children.Clear();
-
-            StackPanel TopStackPanel = new StackPanel();
-            TopStackPanel.Orientation = Orientation.Horizontal;
-
-            Label TopNameLabel = new Label();
-            Label CategoryLabel = new Label();
-
-            TopNameLabel.Content = "Software Name";
-            CategoryLabel.Content = "Category";
-
-            TopNameLabel.Width = 100;
-            CategoryLabel.Width = 70;
-
-            TopNameLabel.FontWeight = System.Windows.FontWeights.Bold;
-            CategoryLabel.FontWeight = System.Windows.FontWeights.Bold;
-
-            TopStackPanel.Children.Add(TopNameLabel);
-            TopStackPanel.Children.Add(CategoryLabel);
-
-            Button UpdateButton = new Button();
-            UpdateButton.Content = "Update";
-
-            CategoriesStackPanel.Children.Add(TopStackPanel);
-            CategoriesStackPanel.Children.Add(UpdateButton);
-
-
-            bool DataBaseAvailable = false; // if database is available
-            bool SoftwareListTable = false; // if table is made
-
-            // Check if database is available
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                DataBaseAvailable = true;
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SQLiteConnection.CreateFile("OClockSaveFile.sqlite");
-
-            }
-
-            // Check if database has the required table
-            try
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "CREATE TABLE SoftwareList (Name varchar, Time int, Category varchar)";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                command.ExecuteNonQuery();
-                DBConnection.Close();
-            }
-
-            catch (Exception)
-            {
-                SoftwareListTable = true;
-            }
-
-            if (DataBaseAvailable || SoftwareListTable)
-            {
-                SQLiteConnection DBConnection = new SQLiteConnection("Data Source=OClockSaveFile.sqlite;Version=3;");
-                DBConnection.Open();
-                string sql = "SELECT * FROM SoftwareList";
-                SQLiteCommand command = new SQLiteCommand(sql, DBConnection);
-                var result = command.ExecuteReader();
-
-                while (result.Read())
-                {
-                    string name = result.GetString(0);
-                    string category;
-                    try
-                    {
-                        category = result.GetString(2);
-                    }
-                    catch (System.InvalidCastException)
-                    {
-                        category = null;
-                    }
-                    StackPanel AddStackPanel = new StackPanel();
-                    AddStackPanel.Orientation = Orientation.Horizontal;
-
-                    TextBlock NameLabel = new TextBlock();
-                    TextBox CategoryTextBox = new TextBox();
-
-                    NameLabel.Text = name;
-                    CategoryTextBox.Text = category;
-
-                    NameLabel.Width = 100;
-                    CategoryTextBox.Width = 70;
-                    //CategoryTextBox.Height = 20;
-
-                    NameLabel.TextWrapping = TextWrapping.Wrap;
-
-                    CategoryTextBox.TextChanged += (s, e) => {
-                        try
-                        {
-                            CategoriesTempSave.Add(name, CategoryTextBox.Text);
-                        } 
-                        catch (System.ArgumentException)
-                        {
-                            CategoriesTempSave.Remove(name);
-                            CategoriesTempSave.Add(name, CategoryTextBox.Text);
-                        }
-                    };
-
-                    AddStackPanel.Children.Add(NameLabel);
-                    AddStackPanel.Children.Add(CategoryTextBox);
-
-                    CategoriesStackPanel.Children.Add(AddStackPanel);
-                }
-
-                UpdateButton.Click += (ss, ee) =>
-                {
-                    foreach (string s in CategoriesTempSave.Keys)
-                    {
-                        UpdateCategoriesInDataBase(s, CategoriesTempSave[s]);
-                    }
-                };
-
-                DBConnection.Close();
-            }
         }
     }
 }

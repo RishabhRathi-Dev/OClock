@@ -14,6 +14,7 @@ using System.Windows.Shapes;
 using System.Data.SQLite;
 using System.Threading;
 
+
 // Add Load system and try to create sync between the two windows
 // Addstackpanel are not adding in todostack from loading
 
