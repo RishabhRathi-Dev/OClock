@@ -1196,7 +1196,7 @@ namespace OClock
                 if (isThere)
                 {
                     string cat = GetCategory(SoftwareName);
-                    string sql1 = string.Format("UPDATE CollectedData SET Time = Time + {0} AND Category = '{3}' WHERE Name = '{1}' AND Date = '{2}'", DataCollectionStopwatch.Elapsed.Minutes, SoftwareName, date, cat);
+                    string sql1 = string.Format("UPDATE CollectedData SET Time = Time + {0} WHERE Name = '{1}' AND Date = '{2}'", DataCollectionStopwatch.Elapsed.Minutes, SoftwareName, date, cat);
                     //Console.WriteLine(DataCollectionStopwatch.Elapsed.Minutes);
                     SQLiteCommand command1 = new SQLiteCommand(sql1, DBConnection);
                     command1.ExecuteNonQuery();
