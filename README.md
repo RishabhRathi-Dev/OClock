@@ -8,7 +8,7 @@ planned or need to do in future.
 
 # About
 
-This project was done for Project Exhibition 1 towards our BTech Degree. Our Team Members are:
+This project was done for Project Exhibition 1, towards our BTech Degree. Our Team Members are:
 
 - Rishabh Rathi
 - Ishita Agarwal
